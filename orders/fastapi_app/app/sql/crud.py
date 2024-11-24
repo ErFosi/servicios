@@ -22,6 +22,17 @@ async def create_order_from_schema(db: AsyncSession, order):
     db.add(db_order)
     await db.commit()
     await db.refresh(db_order)
+    # Aqui es cuando se hace el sagas
+    db_saga = SessionLocal()
+    await create_sagas_history(db_saga, db_order.id_order, db_order.status_order)
+    await db_saga.close()
+    data = {
+        "id_order": db_order.id_order,
+        "id_client": db_order.id_client
+    }
+    message_body = json.dumps(data)
+    routing_key = "delivery.check"
+    # await publish_command(message_body, routing_key)
     return db_order
 
 
@@ -172,3 +183,26 @@ async def update_order(db: AsyncSession, order_id: int, update_data: dict):
     if result.rowcount == 0:
         return None  # Orden no encontrada
     return await get_order(db, order_id)  # Retornar la orden actualizada si se realizó el update
+
+# Sagas
+
+async def get_sagas_history_by_order_id(db: AsyncSession, id_order):
+    """Load all the sagas history of certain order from the database."""
+    stmt = select(models.SagasHistory).where(models.SagasHistory.id_order == id_order)
+    sagas = await get_list_statement_result(db, stmt)
+    return sagas
+
+async def create_sagas_history(db: AsyncSession, id_order, status):
+    """Persist a new sagas history into the database."""
+    db_sagahistory = models.SagasHistory(
+        id_order=id_order,
+        status=status
+    )
+    db.add(db_sagahistory)
+    await db.commit()
+    await db.refresh(db_sagahistory)
+    return db_sagahistory
+
+async def get_sagas_history(db: AsyncSession, id_order):
+    """Load sagas history from the database."""
+    return await get_sagas_history_by_order_id(db, id_order)

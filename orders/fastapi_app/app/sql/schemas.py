@@ -106,3 +106,9 @@ class MachineStatusResponse(BaseModel):
         example=1
     )
     queue: List[int] = Field(description="Queued piece ids")
+
+class SagasHistoryBase(BaseModel):
+    """Sagas history base schema definition."""
+    id: int = Field()
+    id_order: int = Field()
+    status: str = Field()

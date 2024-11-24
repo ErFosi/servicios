@@ -99,7 +99,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 )
 async def create_order(
     order_schema: schemas.OrderPost,
-current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 
 ):
@@ -248,3 +248,41 @@ async def update_order(
         raise_and_log_error(logger, status.HTTP_404_NOT_FOUND, f"Order {order_id} not found")
 
     return updated_order
+
+@router.get(
+    "/order/sagashistory/{order_id}",
+    summary="Retrieve sagas history of a certain order",
+    responses={
+        status.HTTP_200_OK: {
+            "model": schemas.SagasHistoryBase,
+            "description": "Requested sagas history."
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": schemas.Message, "description": "Sagas history not found"
+        }
+    },
+    tags=['Order']
+)
+async def get_sagas_history(
+        order_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: Dict = Depends(get_current_user)
+):
+    """Retrieve sagas history"""
+    logger.debug("GET '/order/sagashistory/%i' endpoint called.", order_id)
+    logs = await crud.get_sagas_history(db, order_id)
+    if not logs:
+        data = {
+            "message": "ERROR - Logs not found"
+        }
+        message_body = json.dumps(data)
+        routing_key = "logs.error.order"
+        await rabbitmq_publish_logs.publish_log(message_body, routing_key)
+        raise_and_log_error(logger, status.HTTP_404_NOT_FOUND)
+    data = {
+        "message": "INFO - Log obtained"
+    }
+    message_body = json.dumps(data)
+    routing_key = "logs.info.order"
+    await rabbitmq_publish_logs.publish_log(message_body, routing_key)
+    return logs

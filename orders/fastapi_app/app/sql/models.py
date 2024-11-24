@@ -94,6 +94,14 @@ class User(Base):
         }
 
 
+class SagasHistory(BaseModel):
+    """Sagas history database table representation."""
+    __tablename__ = "sagas"
+    id = Column(Integer, primary_key=True)
+    id_order = Column(Integer, nullable=False)
+    status = Column(String(256), nullable=False)
+
+
 class Delivery(Base):
 
     STATUS_CREATED = "CREATED"
