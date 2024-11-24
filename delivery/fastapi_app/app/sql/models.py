@@ -86,12 +86,11 @@ class Delivery(Base):
 
     __tablename__ = "deliveries"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    order_id = Column(Integer, nullable=False)  # ID del pedido
     user_id = Column(Integer, nullable=False)    # ID del usuario
     delivery_info = Column(String(50), nullable=True)  # Dirección de entrega
     status = Column(Text, default="CREATED")     # Estado de la entrega
     creation_date = Column(DateTime, default=datetime.utcnow)
+    postal_code = Column(Integer, nullable=True)
 
     def __repr__(self):
         return f"<Delivery(id={self.id}, order_id={self.order_id}, user_id={self.user_id}, status={self.status})>"
