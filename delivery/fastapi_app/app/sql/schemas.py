@@ -88,40 +88,74 @@ class MachineStatusResponse(BaseModel):
         example=1
     )
     queue: List[int] = Field(description="Queued piece ids")
-class DeliveryBase(BaseModel):
-    """Delivery base schema definition."""
-    delivery_info: str = Field(
-        description="Address where the delivery will be made",
+
+
+class UserAddressBase(BaseModel):
+    """Base schema for UserAddress."""
+    address: Optional[str] = Field(
+        None,
+        description="Address for the user",
         example="Calle Falsa 123"
     )
-
-class DeliveryPost(DeliveryBase):
-    """Delivery schema definition."""
-    pass
-
-class Delivery(DeliveryBase):
-    """Delivery schema definition."""
-    status: str = Field(
-        description="Current status of the delivery",
-        example="In progress"
+    zip_code: Optional[int] = Field(
+        None,
+        description="Postal code for the address",
+        example=12345
     )
-class DeliveryBase(BaseModel):
-    delivery_info: str
-    status: str
 
-class Delivery(DeliveryBase):
-    id: int
-    order_id: int
+
+class UserAddressCreate(UserAddressBase):
+    """Schema for creating a UserAddress."""
+    user_id: Optional[int] = Field(
+        None,
+        description="ID of the user",
+        example=1
+    )
+
+
+class UserAddress(UserAddressBase):
+    """Schema for representing UserAddress."""
     user_id: int
-    creation_date: datetime
 
     class Config:
         orm_mode = True
 
-class Message(BaseModel):
-    """Message schema definition."""
-    detail: Optional[str] = Field(example="Success or error message")
+
+class DeliveryBase(BaseModel):
+    """Base schema for Delivery."""
+    status: Optional[str] = Field(
+        None,
+        description="Status of the delivery",
+        example="IN_PROGRESS"
+    )
+
+
+class DeliveryCreate(BaseModel):
+    """Schema for creating a Delivery."""
+    user_id: Optional[int] = Field(
+        None,
+        description="ID of the user creating the delivery",
+        example=1
+    )
+    order_id: int = Field(
+        description="Unique ID of the order",
+        example=123
+    )
+
 
 class DeliveryUpdate(BaseModel):
-    delivery_info: Optional[str] = None
-    status: Optional[str] = None
+    """Schema for updating a Delivery."""
+    status: Optional[str] = Field(
+        None,
+        description="New status of the delivery",
+        example="COMPLETED"
+    )
+
+
+class Delivery(DeliveryBase):
+    """Schema for representing Delivery."""
+    order_id: int
+    user_id: int
+
+    class Config:
+        orm_mode = True

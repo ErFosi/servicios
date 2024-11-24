@@ -2,7 +2,8 @@
 """Database models definitions. Table representations as class."""
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, String, TEXT, ForeignKey,Text
+from sqlalchemy import Column, DateTime, Integer, String, TEXT, ForeignKey, Text, CheckConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -77,20 +78,26 @@ class Piece(BaseModel):
 
 
 class Delivery(Base):
-
-    STATUS_CREATED = "CREATED"
-    STATUS_IN_PROCESS = "IN_PROCESS"
-    STATUS_COMPLETED = "COMPLETED"
-    STATUS_DELIVERED = "DELIVERED"
-
+    STATUS_IN_PROGRESS = "in progress"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_COMPLETED = "completed"
 
     __tablename__ = "deliveries"
 
-    user_id = Column(Integer, nullable=False)    # ID del usuario
-    delivery_info = Column(String(50), nullable=True)  # Dirección de entrega
-    status = Column(Text, default="CREATED")     # Estado de la entrega
-    creation_date = Column(DateTime, default=datetime.utcnow)
-    postal_code = Column(Integer, nullable=True)
+    user_id = Column(Integer, nullable=False)
+    order_id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(
+        Text,
+        nullable=False,
+        default=STATUS_IN_PROGRESS,  # Estado inicial permitido
+    )
+
+class UserAddress(Base):
+    __tablename__ = "user_address"
+
+    user_id = Column(Integer, primary_key=True)  # ID único del usuario
+    address = Column(String(255), nullable=False)  # Dirección de entrega
+    zip_code = Column(Integer, nullable=False)  # Código postal
 
     def __repr__(self):
-        return f"<Delivery(id={self.id}, order_id={self.order_id}, user_id={self.user_id}, status={self.status})>"
+        return f"<UserAddress(user_id={self.user_id}, address={self.address}, zip_code={self.zip_code})>"

@@ -2,7 +2,7 @@
 """FastAPI router definitions."""
 import logging
 import aio_pika
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, get_machine
@@ -117,35 +117,108 @@ async def health_check():
 
 #Delivery info###########################################################################################
 
-@router.put(
-    "/update_delivery_address",
-    response_model=schemas.Message,
-    summary="Update delivery address and status",
-    status_code=status.HTTP_200_OK,
+@router.post(
+    "/create_address",
+    response_model=schemas.UserAddress,
+    summary="Create a new address",
+    status_code=status.HTTP_201_CREATED,
+    tags=["Address"]
+)
+async def create_address(
+    address_data: schemas.UserAddressCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a new address.
+    - If user_id is not provided, use current_user["user_id"].
+    """
+    user_id = address_data.user_id or current_user["user_id"]
+    role = current_user["role"]
+
+    # Si el usuario no es admin, verificar que no intente crear para otro user_id
+    if role != "admin" and user_id != current_user["user_id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    return await crud.create_address(db, user_id, address_data.address, address_data.zip_code)
+
+
+@router.post(
+    "/create_delivery",
+    response_model=schemas.Delivery,
+    summary="Create a new delivery",
+    status_code=status.HTTP_201_CREATED,
     tags=["Delivery"]
 )
-async def update_delivery(
-    delivery_info: str,
-    current_user: dict = Depends(get_current_user),  # Obtener la información del usuario actual
-    db: AsyncSession = Depends(get_db)
+@router.post(
+    "/create_delivery",
+    response_model=schemas.Delivery,
+    summary="Create a new delivery",
+    status_code=status.HTTP_201_CREATED,
+    tags=["Delivery"]
+)
+async def create_delivery(
+    delivery_data: schemas.DeliveryCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Update delivery address and status."""
-    # Obtener el user_id y el rol del usuario actual desde el token
-    user_id = current_user["user_id"]
-    logger.debug("PUT '/update_delivery_address' endpoint called for user_id: %s", user_id)
-
+    """
+    Create a new delivery.
+    - If user_id is not provided, use current_user["user_id"].
+    """
     try:
-        # Actualizar la dirección de entrega y el estado
-        await crud.update_delivery_address(db, user_id, delivery_info)
-    except Exception as e:
-        logger.error("Error updating delivery: %s", str(e))
-        raise HTTPException(status_code=500, detail="Error updating delivery")
+        user_id = delivery_data.user_id or current_user["user_id"]
+        role = current_user["role"]
 
-    return {"detail": "Delivery address and status updated successfully"}
+        # Si el usuario no es admin, verificar que no intente crear para otro user_id
+        if role != "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+        logger.debug(f"Attempting to create delivery: user_id={user_id}, order_id={delivery_data.order_id}")
+        result = await crud.create_delivery(db, user_id, delivery_data.order_id)
+        logger.debug(f"Delivery successfully created: {result}")
+        return result
+
+    except HTTPException as http_error:
+        logger.error(f"HTTP error during delivery creation: {http_error.detail}")
+        raise http_error
+
+    except Exception as e:
+        logger.error(f"Unexpected error during delivery creation: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@router.get(
+    "/get_address",
+    response_model=schemas.UserAddress,
+    summary="Get address by user ID",
+    status_code=status.HTTP_200_OK,
+    tags=["Address"]
+)
+async def get_address(
+    user_id: Optional[int] = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get address.
+    - If user_id is not provided, use current_user["user_id"].
+    """
+    user_id = user_id or current_user["user_id"]
+    role = current_user["role"]
+
+    # Si el usuario no es admin, verificar que no intente acceder a otro user_id
+    if role != "admin" and user_id != current_user["user_id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    address = await crud.get_address_by_user_id(db, user_id)
+    if not address:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Address not found")
+
+    return address
 
 
 @router.get(
-    "/get_delivery/{order_id}",
+    "/get_delivery",
     response_model=schemas.Delivery,
     summary="Get delivery by order ID",
     status_code=status.HTTP_200_OK,
@@ -153,88 +226,142 @@ async def update_delivery(
 )
 async def get_delivery(
     order_id: int,
-    current_user: dict = Depends(get_current_user),  # Obtener información del usuario actual
-    db: AsyncSession = Depends(get_db)
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Get delivery by order ID."""
-    logger.debug("GET '/get_delivery/{order_id}' endpoint called with order_id: %s", order_id)
-
-    # Obtener el user_id y el rol del usuario actual
-    user_id = current_user["user_id"]
+    """
+    Get delivery.
+    - Admins can access any delivery.
+    - Regular users can only access their own deliveries.
+    """
     role = current_user["role"]
-
-    # Permitir acceso si el usuario es admin o es el propietario del pedido
     delivery = await crud.get_delivery_by_order_id(db, order_id)
+
     if not delivery:
-        message = f"Delivery not found for order_id: {order_id}"
-        level = "error"
-        message, routing_key = rabbitmq_publish_logs.formato_log_message(level, message)
-        await rabbitmq_publish_logs.publish_log(message, routing_key)
-        raise_and_log_error(logger, status.HTTP_409_CONFLICT, f"The token is expired, please log in again")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delivery not found")
 
-        logger.error("Delivery not found for order_id: %s", order_id)
-        raise HTTPException(status_code=404, detail="Delivery not found")
-
-    # Verificar que el usuario es el propietario o tiene rol de admin
-    if delivery.user_id != user_id and role != "admin":
-        logger.warning("Access denied for user_id: %s with role: %s", user_id, role)
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Si el usuario no es admin, verificar que sea el propietario
+    if role != "admin" and delivery.user_id != current_user["user_id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     return delivery
 
 
 @router.put(
-    "/admin/update_delivery/{order_id}",
+    "/update_address",
+    response_model=schemas.UserAddress,
+    summary="Update address",
+    status_code=status.HTTP_200_OK,
+    tags=["Address"]
+)
+async def update_address(
+    address_data: schemas.UserAddressCreate,
+    user_id: Optional[int] = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Update address.
+    - If user_id is not provided, use current_user["user_id"].
+    """
+    user_id = user_id or current_user["user_id"]
+    role = current_user["role"]
+
+    # Si el usuario no es admin, verificar que no intente actualizar otro user_id
+    if role != "admin" and user_id != current_user["user_id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    updated_address = await crud.update_address(db, user_id, address_data.address, address_data.zip_code)
+    if not updated_address:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Address not found")
+
+    return updated_address
+
+
+@router.put(
+    "/update_delivery",
     response_model=schemas.Delivery,
-    summary="Admin: Update entire delivery",
+    summary="Update delivery, only admins can update a delivery",
     status_code=status.HTTP_200_OK,
     tags=["Delivery"]
 )
-async def update_full_delivery(
+async def update_delivery(
     order_id: int,
     delivery_data: schemas.DeliveryUpdate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """Update entire delivery details. Only accessible by admins."""
-    # Verificar rol de administrador
-    if current_user["role"] != "admin":
-        logger.warning("Access denied for user_id: %s with role: %s", current_user["user_id"], current_user["role"])
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    """
+    Update delivery.
+    - If user_id is not provided, use current_user["user_id"].
+    """
+    role = current_user["role"]
+    delivery = await crud.get_delivery_by_order_id(db, order_id)
 
-    # Convertir los datos a un diccionario excluyendo valores no definidos
-    delivery_data_dict = delivery_data.dict(exclude_unset=True)
-
-
-    updated_delivery = await crud.update_full_delivery(db, order_id, delivery_data_dict)
-    if not updated_delivery:
-        logger.error("Delivery not found for order_id: %s", order_id)
+    if not delivery:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delivery not found")
 
+    # Si el usuario no es admin, verificar que sea el propietario
+    if role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    updated_delivery = await crud.update_delivery(db, order_id, delivery_data.status)
     return updated_delivery
 
 
 @router.delete(
-    "/admin/delete_delivery/{order_id}",
-    summary="Admin: Delete a delivery",
+    "/delete_address",
+    summary="Delete address",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Address"]
+)
+async def delete_address(
+    user_id: Optional[int] = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete address.
+    - If user_id is not provided, use current_user["user_id"].
+    """
+    user_id = user_id or current_user["user_id"]
+    role = current_user["role"]
+
+    # Si el usuario no es admin, verificar que no intente eliminar otro user_id
+    if role != "admin" and user_id != current_user["user_id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    deleted = await crud.delete_address(db, user_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Address not found")
+
+
+@router.delete(
+    "/delete_delivery",
+    summary="Delete delivery",
     status_code=status.HTTP_204_NO_CONTENT,
     tags=["Delivery"]
 )
 async def delete_delivery(
     order_id: int,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """Delete a delivery by order ID. Only accessible by admins."""
-    # Verificar rol de administrador
-    if current_user["role"] != "admin":
-        logger.warning("Access denied for user_id: %s with role: %s", current_user["user_id"], current_user["role"])
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    """
+    Delete delivery.
+    - Admins can delete any delivery.
+    - Regular users can only delete their own deliveries.
+    """
+    role = current_user["role"]
+    delivery = await crud.get_delivery_by_order_id(db, order_id)
 
-
-    deleted = await crud.delete_delivery(db, order_id)
-    if not deleted:
-        logger.error("Delivery not found for order_id: %s", order_id)
+    if not delivery:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delivery not found")
 
+    # Si el usuario no es admin, verificar que sea el propietario
+    if role != "admin" :
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    deleted = await crud.delete_delivery(db, order_id)
     return {"detail": "Delivery deleted successfully"}
+

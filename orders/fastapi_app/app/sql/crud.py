@@ -24,10 +24,10 @@ async def create_order_from_schema(db: AsyncSession, order):
     await db.refresh(db_order)
     # Aqui es cuando se hace el sagas
     db_saga = SessionLocal()
-    await create_sagas_history(db_saga, db_order.id_order, db_order.status_order)
+    await create_sagas_history(db_saga, db_order.id, db_order.status)
     await db_saga.close()
     data = {
-        "id_order": db_order.id_order,
+        "id_order": db_order.id,
         "id_client": db_order.id_client
     }
     message_body = json.dumps(data)
