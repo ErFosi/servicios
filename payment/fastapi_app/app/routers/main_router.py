@@ -87,70 +87,57 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         )
 
 # Route to get the balance for the current user
-@router.get("/balance", response_model=schemas.BalanceResponse, summary="Get balance for current user")
-async def get_user_balance(
-        current_user: dict = Depends(get_current_user),  # Get the user info from token
-        db: AsyncSession = Depends(get_db)
-):
-    """Retrieve balance for the authenticated user."""
-    user_id = current_user["user_id"]
-    payment = await crud.get_balance_by_user_id(db, user_id)
-    return schemas.BalanceResponse(user_id=payment.user_id, balance=payment.balance)
-
-
-# Route to update the balance for the current user
-@router.put("/balance", response_model=schemas.BalanceResponse, summary="Update balance for current user")
-async def update_user_balance(
-        update_data: schemas.BalanceUpdate,
+@router.get("/balance", response_model=schemas.BalanceResponse, summary="Get balance")
+async def get_balance(
+        user_id: int = None,  # Parámetro opcional
         current_user: dict = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Update balance (add or subtract) for the authenticated user."""
+    """Retrieve balance for the authenticated user or a specific user if admin."""
+    # Si se proporciona `user_id`, verificar permisos
+    if user_id:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Admins only.")
+    else:
+        # Si no se proporciona, usar el ID del usuario autenticado
+        user_id = current_user["user_id"]
+
+    # Obtener el balance del usuario
+    payment = await crud.get_balance_by_user_id(db, user_id)
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User balance not found")
+
+    return schemas.BalanceResponse(user_id=payment.user_id, balance=payment.balance)
+
+
+# Ruta para actualizar el balance
+@router.put("/balance", response_model=schemas.BalanceResponse, summary="Update balance")
+async def update_balance(
+        update_data: schemas.BalanceUpdate,
+        user_id: int = None,  # Parámetro opcional
+        current_user: dict = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Update balance for the authenticated user or a specific user if admin."""
+    # Si se proporciona `user_id`, verificar permisos
+    if user_id:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Admins only.")
+    else:
+        # Si no se proporciona, usar el ID del usuario autenticado
+        user_id = current_user["user_id"]
+
+    # Verificar que el monto sea positivo
     if update_data.amount < 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Charging the user is not allowed. Amount must be positive."
         )
-    user_id = current_user["user_id"]
+
+    # Actualizar el balance
     new_balance, success = await crud.update_balance_by_user_id(db, user_id, update_data.amount)
 
     if not success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient funds")
 
     return schemas.BalanceResponse(user_id=user_id, balance=new_balance)
-
-
-# Admin-only route to modify the balance of another user by user_id
-@router.put("/balance/{user_id}", response_model=schemas.BalanceResponse, summary="Admin: Update another user's balance")
-async def admin_update_user_balance(
-        user_id: int,
-        update_data: schemas.BalanceUpdate,
-        current_user: dict = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """Admin-only: Update balance (add or subtract) for another user."""
-    # Check if the current user has the "admin" role
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Admins only.")
-
-    new_balance, success = await crud.update_balance_by_user_id(db, user_id, update_data.amount)
-
-    if not success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient funds")
-
-    return schemas.BalanceResponse(user_id=user_id, balance=new_balance)
-
-@router.get("/balance/{user_id}", response_model=schemas.BalanceResponse, summary="Admin: Get another user's balance")
-async def admin_get_user_balance(
-    user_id: int,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Admin-only: Retrieve balance for another user."""
-    # Check if the current user has the "admin" role
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Admins only.")
-
-    # Retrieve the balance for the specified user
-    payment = await crud.get_balance_by_user_id(db, user_id)
-    return schemas.BalanceResponse(user_id=payment.user_id, balance=payment.balance)

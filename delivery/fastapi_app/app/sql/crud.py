@@ -48,7 +48,7 @@ async def create_address(db: AsyncSession, user_id: int, address: str, zip_code:
     logger.debug("Address created for user_id %s with address: %s", user_id, address)
     return new_address
 
-async def create_delivery(db: AsyncSession, user_id: int, order_id: int):
+async def create_delivery(db: AsyncSession, order_id: int, user_id: int, delivery_status: str):
     """Create a new delivery for a user, ensuring there is no existing delivery for the same order_id."""
     try:
         # Check if a delivery already exists for the order_id
@@ -59,7 +59,7 @@ async def create_delivery(db: AsyncSession, user_id: int, order_id: int):
 
         if existing_delivery:
             # Optionally update the status or other fields of the existing delivery
-            existing_delivery.status = 'in progress'  # Reset status if needed
+            existing_delivery.status = existing_delivery.status  # Reset status if needed
             existing_delivery.user_id = user_id  # Update the user ID if applicable
             await db.commit()
             await db.refresh(existing_delivery)
@@ -67,11 +67,11 @@ async def create_delivery(db: AsyncSession, user_id: int, order_id: int):
             return existing_delivery
 
         # Create a new delivery if no existing one is found
-        new_delivery = models.Delivery(order_id=order_id, user_id=user_id, status='in progress')
+        new_delivery = models.Delivery(order_id=order_id, user_id=user_id, status=delivery_status)
         db.add(new_delivery)
         await db.commit()
         await db.refresh(new_delivery)
-        logger.debug("Delivery created with order_id %s and user_id: %s", order_id, user_id)
+        logger.debug("Delivery created with order_id %s, user_id: %s, and status: %s", order_id, user_id, delivery_status)
         return new_delivery
 
     except SQLAlchemyError as e:
@@ -108,6 +108,16 @@ async def update_address(db: AsyncSession, user_id: int, address: Optional[str],
 
     logger.debug("Address updated for user_id %s", user_id)
     return await get_address_by_user_id(db, user_id)
+
+async def check_address(db: AsyncSession, user_id):
+    """Persist a new client into the database."""
+    address = get_address_by_user_id(db, user_id)
+    provincia = address.zip_code // 1000 # Extraer código de provincia del código postal
+    if (provincia == 1 or provincia == 20 or provincia == 48):
+        address_check = True
+    else:
+        address_check = False
+    return address_check
 
 async def update_delivery(db: AsyncSession, order_id: int, status: Optional[str]):
     """Actualizar el estado de un delivery."""

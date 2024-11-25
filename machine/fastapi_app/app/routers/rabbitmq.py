@@ -4,18 +4,21 @@ import json
 import logging
 from app.sql import crud
 from app.routers import rabbitmq_publish_logs
+import ssl
 
 logger = logging.getLogger(__name__)
 
-
 async def subscribe_channel():
     # Define your RabbitMQ server connection parameters directly as keyword arguments
+    ssl_context = ssl.create_default_context(cadata=CERTIFICATE)
+
     connection = await aio_pika.connect_robust(
         host='rabbitmq',
-        port=5672,
+        port=5671,
         virtualhost='/',
         login='guest',
-        password='guest'
+        password='guest',
+        ssl=True
     )
     # Create a channel
     global channel

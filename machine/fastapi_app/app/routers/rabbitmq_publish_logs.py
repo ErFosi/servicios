@@ -1,15 +1,20 @@
 import aio_pika
 import json
+import ssl
 # from sql.database import SessionLocal # pylint: disable=import-outside-toplevel
+
 
 async def subscribe_channel():
     # Define your RabbitMQ server connection parameters directly as keyword arguments
+    ssl_context = ssl.create_default_context(cadata=CERTIFICATE)
+
     connection = await aio_pika.connect_robust(
         host='rabbitmq',
-        port=5672,
+        port=5671,
         virtualhost='/',
         login='guest',
-        password='guest'
+        password='guest',
+        ssl=True
     )
     # Create a channel
     global channel

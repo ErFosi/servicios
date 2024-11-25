@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """Functions that interact with the database."""
 import logging
+import json
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from .database import SessionLocal
+from ..routers.rabbitmq import publish_command
 from . import models
 from sqlalchemy import update
 
@@ -31,8 +34,8 @@ async def create_order_from_schema(db: AsyncSession, order):
         "id_client": db_order.id_client
     }
     message_body = json.dumps(data)
-    routing_key = "delivery.check"
-    # await publish_command(message_body, routing_key)
+    routing_key = "order.check"
+    await publish_command(message_body, routing_key)
     return db_order
 
 

@@ -1,21 +1,28 @@
 import aio_pika
 import json
+import ssl
 from app.sql.database import SessionLocal  # pylint: disable=import-outside-toplevel
 from app.sql import crud, models
 
+with open("/keys/cert.pem", "r") as certificate:
+    CERTIFICATE = certificate.read()
 
 async def subscribe_channel():
+    ssl_context = ssl.create_default_context(cadata=CERTIFICATE)
+
     connection = await aio_pika.connect_robust(
         host='rabbitmq',
-        port=5672,
+        port=5671,
         virtualhost='/',
         login='guest',
-        password='guest'
+        password='guest',
+        ssl_options=aio_pika.SSLOptions(context=ssl_context)
     )
     # Create a channel
     global channel
     channel = await connection.channel()
     # Declare the exchange
+
     global exchange_name
     exchange_name = 'exchange'
     global exchange_responses

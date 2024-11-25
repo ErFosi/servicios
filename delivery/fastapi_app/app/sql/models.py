@@ -79,7 +79,8 @@ class Piece(BaseModel):
 
 class Delivery(Base):
     STATUS_IN_PROGRESS = "in progress"
-    STATUS_CANCELLED = "cancelled"
+    STATUS_CREATED = "created"
+    STATUS_CANCELED = "canceled"
     STATUS_COMPLETED = "completed"
 
     __tablename__ = "deliveries"

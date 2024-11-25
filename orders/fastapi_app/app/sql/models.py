@@ -41,6 +41,7 @@ class Order(BaseModel):
     STATUS_DELIVERED = "Delivered"
     STATUS_PAYMENT_PENDING = "PaymentPending"
     STATUS_PAYMENT_DONE = "PaymentDone"
+    STATUS_PAYMENT_CANCELED = "PaymentCanceled"
 
     __tablename__ = "manufacturing_order"
     id = Column(Integer, primary_key=True)

@@ -182,47 +182,43 @@ async def refresh_token(token: str, db: AsyncSession = Depends(get_db)):
 
 @router.put("/change-password", response_model=schemas.UserData)
 async def change_password(
-    current_password: str, new_password: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)
+    current_password: str,
+    new_password: str,
+    user_id: int = None,  # Parámetro opcional
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-    db_user = await crud.get_user_by_id(db, user.get("user_id"))
-    if not db_user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    # Verificar si el rol no es admin y si la contraseña actual es incorrecta
-    if user.get("role") != "admin" and not crud.verify_password(current_password, db_user.password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password")
-
-    # Obtener usuario de la base de datos
-
-
-    # Actualizar la contraseña con el nuevo hash
-    db_user.password = crud.get_password_hash(new_password)
-    await db.commit()
-    await db.refresh(db_user)
-
-    return db_user
-
-@router.put("/admin/change-password", response_model=schemas.UserData)
-async def admin_change_password(
-    user_id: int, new_password: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)
-):
-    # Verificar que el usuario autenticado sea administrador
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    # Si `user_id` se proporciona, verificar que sea admin o coincida con el ID del usuario autenticado
+    if user_id:
+        if user.get("role") != "admin" and user.get("user_id") != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    else:
+        # Si no se proporciona `user_id`, usar el ID del usuario autenticado
+        user_id = user.get("user_id")
 
     # Obtener el usuario objetivo
     db_user = await crud.get_user_by_id(db, user_id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Cambiar la contraseña del usuario objetivo
+    # Si no es admin, verificar la contraseña actual
+    if user.get("role") != "admin" and not crud.verify_password(current_password, db_user.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password")
+
+    # Cambiar la contraseña
     db_user.password = crud.get_password_hash(new_password)
     await db.commit()
     await db.refresh(db_user)
 
     return db_user
 
-@router.delete("/admin/delete-user/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+
+@router.delete("/delete/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
     # Verificar que el usuario autenticado sea administrador
     if user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
@@ -237,3 +233,4 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db), user: di
     await db.commit()
 
     return {"message": "User deleted successfully"}
+

@@ -26,7 +26,7 @@ Monolithic manufacturing order application.
 """
 
 # RabbitMQ connection details
-RABBITMQ_URL = 'amqp://guest:guest@localhost:5672/'
+RABBITMQ_URL = 'amqps://guest:guest@rabbitmq:5671/'
 LOG_ROUTING_KEY = "logs.#"
 EXCHANGE_NAME = "exchange"
 QUEUE_NAME = "logging_queue"
@@ -75,6 +75,7 @@ async def startup_event():
 
     await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
     asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
+    asyncio.create_task(rabbitmq.subscribe_commands_logs())
     logger.info("Despues de create_task")
 
 # Main #############################################################################################

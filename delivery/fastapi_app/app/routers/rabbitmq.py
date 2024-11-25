@@ -4,21 +4,27 @@ import json
 from app.sql.database import SessionLocal  # pylint: disable=import-outside-toplevel
 from app.sql import crud, models
 from app.routers import rabbitmq_publish_logs
+import ssl
 
 
 async def subscribe_channel():
-    # Define your RabbitMQ server connection parameters directly as keyword arguments
+
     connection = await aio_pika.connect_robust(
         host='rabbitmq',
-        port=5672,
+        port=5671,
         virtualhost='/',
         login='guest',
-        password='guest'
+        password='guest',
+        ssl=True
     )
     # Create a channel
     global channel
     channel = await connection.channel()
     # Declare the exchange
+    global exchange_commands_name
+    exchange_commands_name = 'commands'
+    global exchange_commands
+    exchange_commands = await channel.declare_exchange(name=exchange_commands_name, type='topic', durable=True)
     global exchange_events_name
     exchange_events_name = 'exchange'
     global exchange_events
@@ -37,12 +43,19 @@ async def on_create_message(message):
     async with message.process():
         order = json.loads(message.body)
         db = SessionLocal()
-        delivery = await crud.create_delivery(db, order["id_order"], order["user_id"])
+        address_check = await crud.check_address(db, order["user_id"])
         data = {
-            "id_order": delivery.order_id
+            "id_order": order.order_id,
+            "status": address_check
         }
+        if address_check:
+            status_delivery_address_check = models.Delivery.STATUS_CREATED
+        else:
+            status_delivery_address_check = models.Delivery.STATUS_CANCELED
+
+        delivery = await crud.create_delivery(db, order["id_order"], order["user_id"],status_delivery_address_check)
         message = json.dumps(data)
-        routing_key = "events.delivery.created"
+        routing_key = "events.delivery.checked"
         await publish_event(message, routing_key)
         message, routing_key = await rabbitmq_publish_logs.formato_log_message("info", "delivery creado correctamente para el order " + str(delivery.order_id))
         await rabbitmq_publish_logs.publish_log(message, routing_key)

@@ -5,8 +5,14 @@ services:
     image: rabbitmq:3-management   # Usa la versión con interfaz de administración
     container_name: rabbitmq
     ports:
-      - "5672:5672"                # Puerto para la comunicación entre los servicios
-      - "15672:15672"              # Puerto para la interfaz de administración
+      - "5671:5671"                # Puerto para la comunicación entre los servicios
+      - "15672:15672"
+      - "15671:15671"
+      - "5672:5672"
+
+    volumes:
+      - './keys:/etc/ssl/certs'   # Monta el directorio con los certificados
+      - './rabbitmq:/etc/rabbitmq' # Configuración personalizada de RabbitMQ# Puerto para la interfaz de administración
     healthcheck:
       test: ["CMD", "rabbitmqctl", "ping"]
       interval: 30s

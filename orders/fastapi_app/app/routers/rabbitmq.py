@@ -5,25 +5,34 @@ from app.sql import crud
 from app.sql import models, schemas
 import logging
 from app.routers import rabbitmq_publish_logs
+import ssl
 
 logger = logging.getLogger(__name__)
 
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 
 async def subscribe_channel():
-    # Define your RabbitMQ server connection parameters directly as keyword arguments
+    logger.info("Intento de suscribirse")
     connection = await aio_pika.connect_robust(
         host='rabbitmq',
-        port=5672,
+        port=5671,
         virtualhost='/',
         login='guest',
-        password='guest'
+        password='guest',
+        ssl_options=aio_pika.SSLOptions(context=ssl_context)
     )
     # Create a channel
     global channel
     logger.info("Se ha suscrito")
     channel = await connection.channel()
     logger.debug("Conexion creada")
-    # Declare the exchange
+    # Declare the exchanges
+    global exchange_commands_name
+    exchange_commands_name = 'commands'
+    global exchange_commands
+    exchange_commands = await channel.declare_exchange(name=exchange_commands_name, type='topic', durable=True)
     global exchange_name
     exchange_name = 'exchange'
     global exchange
@@ -91,8 +100,10 @@ async def on_payment_checked_message(message):
     async with message.process():
         payment = json.loads(message.body)
         db = SessionLocal()
+        db_saga = SessionLocal()
         if payment['status']:
             db_order = await crud.update_order_status(db, payment['id_order'], models.Order.STATUS_PAYMENT_DONE)
+            await crud.create_sagas_history(db_saga, payment['id_order'], models.Order.STATUS_PAYMENT_DONE)
             data = {
                 "id_order": db_order.id,
                 "user_id": db_order.id_client
@@ -113,13 +124,24 @@ async def on_payment_checked_message(message):
                 message_body = json.dumps(data)
                 routing_key = "events.piece.created"
                 await publish(message_body, routing_key)
+                routing_key = "piece.created"
+                await publish_command(message_body, routing_key)
                 await rabbitmq_publish_logs.publish_log("Petición de hacer pieza enviada", "logs.info.order")
 
             # pydantic_order = schemas.Order.from_orm(db_order)
             # order_json = pydantic_order.dict()
         else:
+            db_order = await crud.update_order_status(db, payment['id_order'], models.Order.STATUS_PAYMENT_DONE)
             await rabbitmq_publish_logs.publish_log("El balance no es suficiente para el cliente " + str(payment["id_client"]), "logs.error.order")
+            await crud.create_sagas_history(db_saga, payment['id_order'], models.Order.STATUS_PAYMENT_CANCELED)
+            data = {
+                "order_id": db_order.id
+            }
+            message_body = json.dumps(data)
+            routing_key = "piece.cancel"
+            await publish_command(message_body, routing_key)
         await db.close()
+        await db_saga.close()
 
 
 async def subscribe_payment_checked():
@@ -138,6 +160,15 @@ async def subscribe_payment_checked():
 async def publish(message_body, routing_key):
     # Publish the message to the exchange
     await exchange.publish(
+        aio_pika.Message(
+            body=message_body.encode(),
+            content_type="text/plain"
+        ),
+        routing_key=routing_key)
+
+async def publish_command(message_body, routing_key):
+    # Publish the message to the exchange
+    await exchange_commands.publish(
         aio_pika.Message(
             body=message_body.encode(),
             content_type="text/plain"

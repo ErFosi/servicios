@@ -5,14 +5,16 @@ from app.sql.database import SessionLocal # pylint: disable=import-outside-tople
 
 logger = logging.getLogger(__name__)
 
+
 async def subscribe_channel(type, ex_name: str):
     # Define your RabbitMQ server connection parameters directly as keyword arguments
     connection = await aio_pika.connect_robust(
         host='rabbitmq',
-        port=5672,
+        port=5671,
         virtualhost='/',
         login='guest',
-        password='guest'
+        password='guest',
+        ssl=True
     )
     # Create a channel
     global channel
