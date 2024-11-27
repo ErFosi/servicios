@@ -8,7 +8,6 @@ services:
       - "5671:5671"                # Puerto para la comunicación entre los servicios
       - "15672:15672"
       - "15671:15671"
-      - "5672:5672"
 
     volumes:
       - './keys:/etc/ssl/certs'   # Monta el directorio con los certificados

@@ -26,7 +26,7 @@ Monolithic manufacturing order application.
 """
 
 # RabbitMQ connection details
-RABBITMQ_URL = 'amqps://guest:guest@rabbitmq:5671/'
+RABBITMQ_URL = 'amqp://guest:guest@rabbitmq:5671/'
 LOG_ROUTING_KEY = "logs.#"
 EXCHANGE_NAME = "exchange"
 QUEUE_NAME = "logging_queue"

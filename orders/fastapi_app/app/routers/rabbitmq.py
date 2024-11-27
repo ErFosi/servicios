@@ -7,36 +7,66 @@ import logging
 from app.routers import rabbitmq_publish_logs
 import ssl
 
+# Configura el logger
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
+# Configuración SSL
+ssl_context = ssl.create_default_context(cafile="/keys/ca_cert.pem")
+ssl_context.check_hostname = False  # Deshabilita la verificación del hostname
+ssl_context.verify_mode = ssl.CERT_NONE  # No verifica el certificado del servidor
+
+# Variables globales
+channel = None
+exchange_commands = None
+exchange = None
+exchange_commands_name = 'commands'
+exchange_name = 'exchange'
 
 async def subscribe_channel():
-    logger.info("Intento de suscribirse")
-    connection = await aio_pika.connect_robust(
-        host='rabbitmq',
-        port=5671,
-        virtualhost='/',
-        login='guest',
-        password='guest',
-        ssl_options=aio_pika.SSLOptions(context=ssl_context)
-    )
-    # Create a channel
-    global channel
-    logger.info("Se ha suscrito")
-    channel = await connection.channel()
-    logger.debug("Conexion creada")
-    # Declare the exchanges
-    global exchange_commands_name
-    exchange_commands_name = 'commands'
-    global exchange_commands
-    exchange_commands = await channel.declare_exchange(name=exchange_commands_name, type='topic', durable=True)
-    global exchange_name
-    exchange_name = 'exchange'
-    global exchange
-    exchange = await channel.declare_exchange(name=exchange_name, type='topic', durable=True)
+    """
+    Conéctate a RabbitMQ utilizando SSL, declara los intercambios necesarios y configura el canal.
+    """
+    global channel, exchange_commands, exchange, exchange_commands_name, exchange_name
+
+    try:
+        logger.info("Intentando suscribirse...")
+
+        # Establece la conexión robusta con RabbitMQ
+        connection = await aio_pika.connect_robust(
+            host='rabbitmq',
+            port=5671,  # Puerto seguro SSL
+            virtualhost='/',
+            login='guest',
+            password='guest',
+            ssl=True,
+            ssl_context=ssl_context
+        )
+        logger.info("Conexión establecida con éxito")
+
+        # Crear un canal
+        channel = await connection.channel()
+        logger.debug("Canal creado con éxito")
+
+        # Declarar el intercambio para "commands"
+        exchange_commands = await channel.declare_exchange(
+            name=exchange_commands_name,
+            type='topic',
+            durable=True
+        )
+        logger.info(f"Intercambio '{exchange_commands_name}' declarado con éxito")
+
+        # Declarar el intercambio específico
+        exchange = await channel.declare_exchange(
+            name=exchange_name,
+            type='topic',
+            durable=True
+        )
+        logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
+
+    except Exception as e:
+        logger.error(f"Error durante la suscripción: {e}")
+        raise  # Propaga el error para manejo en niveles superiores
 
 
 async def on_piece_message(message):

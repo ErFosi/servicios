@@ -68,11 +68,10 @@ async def startup_event():
 
         logger.info("antes del subscribe")
 
-        # await rabbitmq.subscribe_channel()
+        await rabbitmq.subscribe_channel()
         await rabbitmq_publish_logs.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
 
         logger.info("despues del subscribe")
-        await rabbitmq.subscribe_channel()
         asyncio.create_task(rabbitmq.subscribe_create())
         asyncio.create_task(rabbitmq.subscribe_produced())
 

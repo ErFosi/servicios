@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # RabbitMQ Config
-RABBITMQ_URL = 'amqps://guest:guest@rabbitmq:5671/'
+RABBITMQ_URL = 'amqp://guest:guest@rabbitmq:5671/'
 EXCHANGE_NAME = "exchange"
 
 with open("/keys/pub.pem", "r") as pub_file:
