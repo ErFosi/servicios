@@ -20,6 +20,8 @@ exchange_commands = None
 exchange = None
 exchange_commands_name = 'commands'
 exchange_name = 'exchange'
+exchange_responses_name = 'responses'
+exchange_responses = None
 
 async def subscribe_channel():
     """
@@ -60,11 +62,42 @@ async def subscribe_channel():
             type='topic',
             durable=True
         )
+
+
+        exchange_responses = await channel.declare_exchange(name=exchange_responses_name, type='topic', durable=True)
         logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
 
     except Exception as e:
         logger.error(f"Error durante la suscripción: {e}")
         raise  # Propaga el error para manejo en niveles superiores
+
+
+async def on_message_delivery_cancel(message):
+    async with message.process():
+        order = json.loads(message.body)
+        db = SessionLocal()
+        delivery = await crud.get_delivery_by_order(db, order['id_order'])
+        delivery = await crud.change_delivery_status(db, delivery.id_delivery, models.Delivery.STATUS_CANCELED)
+        await db.close()
+        data = {
+            "id_order": order['id_order']
+        }
+        message_body = json.dumps(data)
+        routing_key = "delivery.canceled"
+        await publish_response(message_body, routing_key)
+
+
+async def subscribe_delivery_cancel():
+    # Create queue
+    queue_name = "delivery.cancel"
+    queue = await channel.declare_queue(name=queue_name, exclusive=True)
+    # Bind the queue to the exchange
+    routing_key = "delivery.cancel"
+    await queue.bind(exchange=exchange_commands_name, routing_key=routing_key)
+    # Set up a message consumer
+    async with queue.iterator() as queue_iter:
+        async for message in queue_iter:
+            await on_message_delivery_cancel(message)
 
 
 async def on_produced_message(message):
@@ -96,7 +129,21 @@ async def on_create_message(message):
         await publish_event(message, routing_key)
         message, routing_key = await rabbitmq_publish_logs.formato_log_message("info", "delivery creado correctamente para el order " + str(delivery.order_id))
         await rabbitmq_publish_logs.publish_log(message, routing_key)
+        routing_key = "delivery.checked"
+        await publish_response(message_body, routing_key)
         await db.close()
+
+async def subscribe_delivery_check():
+    # Create queue
+    queue_name = "delivery.check"
+    queue = await channel.declare_queue(name=queue_name, exclusive=True)
+    # Bind the queue to the exchange
+    routing_key = "delivery.check"
+    await queue.bind(exchange=exchange_commands_name, routing_key=routing_key)
+    # Set up a message consumer
+    async with queue.iterator() as queue_iter:
+        async for message in queue_iter:
+            await on_create_message(message)
 
 async def subscribe_produced():
     # Create queue
@@ -156,6 +203,16 @@ async def send_product(delivery):
     await publish_event(message_body, routing_key)
     message, routing_key = rabbitmq_publish_logs.formato_log_message("info", "delivery actualizado a " + db_delivery.status + "correctamente para el order " + db_delivery.order_id)
     await rabbitmq_publish_logs.publish_log(message, routing_key)
+
+
+async def publish_response(message_body, routing_key):
+    # Publish the message to the exchange
+    await exchange_responses.publish(
+        aio_pika.Message(
+            body=message_body.encode(),
+            content_type="text/plain"
+        ),
+        routing_key=routing_key)
 
 
 async def publish_event(message_body, routing_key):

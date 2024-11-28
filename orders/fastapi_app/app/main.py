@@ -10,13 +10,15 @@ from fastapi import FastAPI
 from app.routers import main_router, rabbitmq, rabbitmq_publish_logs
 from app.sql import models
 from app.sql import database
-
+from app.global_variables import system_resources
 # Configure logging ################################################################################
 print("Name: ", __name__)
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'logging.ini'))
 logger = logging.getLogger(__name__)
 
 
+# Main #############################################################################################
+# If application is run as script, execute uvicorn on port 8000
 
 # OpenAPI Documentation ############################################################################
 APP_VERSION = os.getenv("APP_VERSION", "2.0.0")
@@ -70,8 +72,11 @@ async def startup_event():
     await rabbitmq_publish_logs.subscribe_channel()
     logger.info("Se ha suscrito")
     asyncio.create_task(rabbitmq.subscribe_pieces())
+    asyncio.create_task(rabbitmq.subscribe_command_payment_checked())
     asyncio.create_task(rabbitmq.subscribe_payment_checked())
+    asyncio.create_task(rabbitmq.subscribe_delivery_cancel())
     asyncio.create_task(rabbitmq.subscribe_order_finished())
+
     data = {
         "message": "INFO - Servicio Orders inicializado correctamente"
     }
@@ -80,17 +85,18 @@ async def startup_event():
     await rabbitmq_publish_logs.publish_log(message_body, routing_key)
     logger.info("Se ha enviado")
 
-# Main #############################################################################################
-# If application is run as script, execute uvicorn on port 8000
 if __name__ == "__main__":
     import uvicorn
 
     logger.debug("App run as script")
     print("Starting uvicorn...")
+
     uvicorn.run(
         app,
         host="0.0.0.0",
         port=8004,
         log_config='logging.ini'
     )
+
+
     logger.debug("App finished as script")

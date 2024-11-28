@@ -6,6 +6,8 @@ from app.sql import models, schemas
 import logging
 from app.routers import rabbitmq_publish_logs
 import ssl
+from app.global_variables import rabbitmq_working
+from app.global_variables import set_rabbitmq_status
 
 # Configura el logger
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +24,8 @@ exchange_commands = None
 exchange = None
 exchange_commands_name = 'commands'
 exchange_name = 'exchange'
+exchange_responses_name = 'responses'
+exchange_responses = None
 
 async def subscribe_channel():
     """
@@ -56,6 +60,8 @@ async def subscribe_channel():
         )
         logger.info(f"Intercambio '{exchange_commands_name}' declarado con éxito")
 
+        exchange_responses = await channel.declare_exchange(name=exchange_responses_name, type='topic', durable=True)
+
         # Declarar el intercambio específico
         exchange = await channel.declare_exchange(
             name=exchange_name,
@@ -63,7 +69,10 @@ async def subscribe_channel():
             durable=True
         )
         logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
-
+        rabbitmq_working=True
+        set_rabbitmq_status(True)
+        logger.info("rabbitmq_working : "+str(rabbitmq_working))
+        # events
     except Exception as e:
         logger.error(f"Error durante la suscripción: {e}")
         raise  # Propaga el error para manejo en niveles superiores
@@ -154,8 +163,6 @@ async def on_payment_checked_message(message):
                 message_body = json.dumps(data)
                 routing_key = "events.piece.created"
                 await publish(message_body, routing_key)
-                routing_key = "piece.created"
-                await publish_command(message_body, routing_key)
                 await rabbitmq_publish_logs.publish_log("Petición de hacer pieza enviada", "logs.info.order")
 
             # pydantic_order = schemas.Order.from_orm(db_order)
@@ -168,10 +175,36 @@ async def on_payment_checked_message(message):
                 "order_id": db_order.id
             }
             message_body = json.dumps(data)
-            routing_key = "piece.cancel"
+            routing_key = "delivery.cancel"
             await publish_command(message_body, routing_key)
         await db.close()
         await db_saga.close()
+
+
+async def subscribe_delivery_cancel():
+    # Create queue
+    queue_name = "delivery.canceled"
+    queue = await channel.declare_queue(name=queue_name, exclusive=True)
+    # Bind the queue to the exchange
+    routing_key = "delivery.canceled"
+    await queue.bind(exchange=exchange_responses_name, routing_key=routing_key)
+    # Set up a message consumer
+    async with queue.iterator() as queue_iter:
+        async for message in queue_iter:
+            await on_message_delivery_cancel(message)
+
+
+async def subscribe_command_payment_checked():
+    # Create a queue
+    queue_name = "payment.checked"
+    queue = await channel.declare_queue(name=queue_name, exclusive=True)
+    # Bind the queue to the exchange
+    routing_key = "payment.checked"
+    await queue.bind(exchange=exchange_responses_name, routing_key=routing_key)
+    # Set up a message consumer
+    async with queue.iterator() as queue_iter:
+        async for message in queue_iter:
+            await on_payment_checked_message(message)
 
 
 async def subscribe_payment_checked():
@@ -185,6 +218,43 @@ async def subscribe_payment_checked():
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
             await on_payment_checked_message(message)
+
+
+async def on_delivery_checked_message(message):
+    async with message.process():
+        delivery = json.loads(message.body)
+        db = SessionLocal()
+        db_saga = SessionLocal()
+        if delivery['status'] == True:
+            db_order = await crud.update_order_status(db, delivery['order_id'], models.Order.STATUS_PAYMENT_PENDING)
+            await crud.create_sagas_history(db_saga, delivery['order_id'], models.Order.STATUS_PAYMENT_PENDING)
+            data = {
+                "id_order": db_order.id_order,
+                "id_client": db_order.id_client,
+                "movement": -(db_order.number_of_pieces)
+            }
+            message_body = json.dumps(data)
+            routing_key = "payment.check"
+            await publish_command(message_body, routing_key)
+        elif delivery['status'] == False:
+            db_order = await crud.update_order_status(db, delivery['order_id'], models.Order.STATUS_CANCELED)
+            await crud.create_sagas_history(db_saga, delivery['order_id'], models.Order.STATUS_CANCELED)
+        await db.close()
+        await db_saga.close()
+
+
+async def subscribe_delivery_checked():
+    # Create a queue
+    queue_name = "delivery.checked"
+    queue = await channel.declare_queue(name=queue_name, exclusive=True)
+    # Bind the queue to the exchange
+    routing_key = "delivery.checked"
+
+    await queue.bind(exchange=exchange_responses_name, routing_key=routing_key)
+    # Set up a message consumer
+    async with queue.iterator() as queue_iter:
+        async for message in queue_iter:
+            await on_delivery_checked_message(message)
 
 
 async def publish(message_body, routing_key):

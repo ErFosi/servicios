@@ -76,6 +76,7 @@ async def startup_event():
     await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
     asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
     asyncio.create_task(rabbitmq.subscribe_commands_logs())
+    asyncio.create_task(rabbitmq.subscribe_responses_logs())
     logger.info("Despues de create_task")
 
 # Main #############################################################################################

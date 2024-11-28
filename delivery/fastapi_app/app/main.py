@@ -74,6 +74,8 @@ async def startup_event():
         logger.info("despues del subscribe")
         asyncio.create_task(rabbitmq.subscribe_create())
         asyncio.create_task(rabbitmq.subscribe_produced())
+        asyncio.create_task(rabbitmq.subscribe_delivery_check())
+        asyncio.create_task(rabbitmq.subscribe_delivery_cancel())
 
         message, routing_key = await rabbitmq_publish_logs.formato_log_message("debug", "inicializando Delivery correctamente")
         await rabbitmq_publish_logs.publish_log(message, routing_key)

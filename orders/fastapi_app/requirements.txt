@@ -12,3 +12,4 @@ PyYAML~=6.0
 aio-pika
 pyjwt~=2.6
 python-jose[cryptography]==3.3.0
+psutil

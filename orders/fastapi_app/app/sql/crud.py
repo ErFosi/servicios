@@ -34,7 +34,7 @@ async def create_order_from_schema(db: AsyncSession, order):
         "id_client": db_order.id_client
     }
     message_body = json.dumps(data)
-    routing_key = "order.check"
+    routing_key = "delivery.check"
     await publish_command(message_body, routing_key)
     return db_order
 

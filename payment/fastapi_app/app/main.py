@@ -67,6 +67,7 @@ async def startup_event():
     async with database.engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     await rabbitmq.subscribe_channel()
+    await rabbitmq.subscribe_command_payment_check()
     logger.info("Se ha suscrito")
     asyncio.create_task(rabbitmq.subscribe_payment_check())
 

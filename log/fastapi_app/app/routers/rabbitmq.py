@@ -24,6 +24,8 @@ exchange_commands = None
 exchange = None
 exchange_commands_name = 'commands'
 exchange_name = 'exchange'
+exchange_responses_name = 'responses'
+exchange_responses = None
 
 async def subscribe_channel():
     """
@@ -65,6 +67,8 @@ async def subscribe_channel():
             durable=True
         )
         logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
+
+        exchange_responses = await channel.declare_exchange(name=exchange_responses_name, type='topic', durable=True)
 
     except Exception as e:
         logger.error(f"Error durante la suscripción: {e}")
@@ -122,3 +126,28 @@ async def subscribe_commands_logs():
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
             await on_command_log_message(message)
+
+async def on_response_log_message(message):
+    async with message.process():
+        log = models.Log(
+            #exchange=message.exchange,
+            exchange=exchange_responses_name,
+            routing_key=message.routing_key,
+            data=message.body
+        )
+        db = SessionLocal()
+        await crud.create_log(db, log)
+        await db.close()
+
+
+async def subscribe_responses_logs():
+    # Create a queue
+    queue_name = "responses_logs"
+    queue = await channel.declare_queue(name=queue_name, exclusive=True)
+    # Bind the queue to the exchange
+    routing_key = "#"
+    await queue.bind(exchange=exchange_responses, routing_key=routing_key)
+    # Set up a message consumer
+    async with queue.iterator() as queue_iter:
+        async for message in queue_iter:
+            await on_response_log_message(message)
