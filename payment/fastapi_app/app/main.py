@@ -63,13 +63,30 @@ app.include_router(main_router.router)
 @app.on_event("startup")
 async def startup_event():
     """Configuration to be executed when FastAPI server starts."""
-    logger.info("Creating database tables")
-    async with database.engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
-    await rabbitmq.subscribe_channel()
-    await rabbitmq.subscribe_command_payment_check()
-    logger.info("Se ha suscrito")
-    asyncio.create_task(rabbitmq.subscribe_payment_check())
+    try:
+        logger.info("Creating database tables")
+        async with database.engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.create_all)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Error while creating database tables: {e}")
+        raise  # Rethrow the exception if you want the startup to fail
+
+    try:
+        logger.info("Subscribing to RabbitMQ channels")
+        await rabbitmq.subscribe_channel()
+        asyncio.create_task(rabbitmq.subscribe_command_payment_check())
+        logger.info("RabbitMQ channels subscribed successfully")
+    except Exception as e:
+        logger.error(f"Error while subscribing to RabbitMQ channels: {e}")
+        raise  # Rethrow if you want to halt the startup
+
+    try:
+        asyncio.create_task(rabbitmq.subscribe_payment_check())
+        logger.info("Payment check subscription task created")
+    except Exception as e:
+        logger.error(f"Error while creating payment check subscription task: {e}")
+        raise  # Rethrow if necessary
 
 # Main #############################################################################################
 # If application is run as script, execute uvicorn on port 8000

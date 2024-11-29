@@ -4,8 +4,8 @@ import ssl
 import logging
 from app.sql.database import SessionLocal  # pylint: disable=import-outside-toplevel
 from app.sql import crud, models
-from app.global_variables import rabbitmq_working
-from app.global_variables import set_rabbitmq_status
+
+
 
 # Configura el logger
 logging.basicConfig(level=logging.INFO)
@@ -47,9 +47,6 @@ async def subscribe_channel():
         exchange_commands = await channel.declare_exchange(name=exchange_commands_name, type='topic', durable=True)
 
         exchange_responses = await channel.declare_exchange(name=exchange_responses_name, type='topic', durable=True)
-        rabbitmq_working = True
-        set_rabbitmq_status(True)
-        logger.info("rabbitmq_working : "+str(rabbitmq_working))
 
     except Exception as e:
         logger.error(f"Error durante la suscripción: {e}")
@@ -78,7 +75,7 @@ async def subscribe_payment_check():
     queue = await channel.declare_queue(name=queue_name, exclusive=True)
     # Bind the queue to the exchange
     routing_key = "events.order.created.pending"
-    await queue.bind(exchange=exchange_name, routing_key=routing_key)
+    await queue.bind(exchange=exchange_events_name, routing_key=routing_key)
     # Set up a message consumer
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
