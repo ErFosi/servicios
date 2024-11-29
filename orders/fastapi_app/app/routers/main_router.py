@@ -16,8 +16,8 @@ from ..sql import schemas
 from app.routers import rabbitmq_publish_logs, rabbitmq
 from .router_utils import raise_and_log_error
 from typing import Dict
-from app.global_variables import rabbitmq_working, system_values
-from app.global_variables import get_rabbitmq_status
+from global_variables.global_variables import rabbitmq_working, system_values
+from global_variables.global_variables import get_rabbitmq_status
 from fastapi.responses import JSONResponse
 
 with open("/keys/priv.pem", "r") as priv_file:

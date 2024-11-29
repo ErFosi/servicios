@@ -6,8 +6,7 @@ from app.sql import models, schemas
 import logging
 from app.routers import rabbitmq_publish_logs
 import ssl
-from app.global_variables import rabbitmq_working
-from app.global_variables import set_rabbitmq_status
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 
 # Configura el logger
 logging.basicConfig(level=logging.INFO)
@@ -274,3 +273,14 @@ async def publish_command(message_body, routing_key):
             content_type="text/plain"
         ),
         routing_key=routing_key)
+
+
+async def on_message_delivery_cancel(message):
+    async with message.process():
+        delivery = json.loads(message.body)
+        db = SessionLocal()
+        db_saga = SessionLocal()
+        db_order = await crud.update_order_status(db, delivery['order_id'], models.Order.STATUS_CANCELED)
+        await crud.create_sagas_history(db_saga, delivery['order_id'], models.Order.STATUS_CANCELED)
+        await db.close()
+        await db_saga.close()

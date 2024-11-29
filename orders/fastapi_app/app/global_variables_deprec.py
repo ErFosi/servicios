@@ -1,12 +1,13 @@
 from contextlib import asynccontextmanager
 import asyncio
 import psutil
+import logging
 
 rabbitmq_working=False
 fastapi_working=False
 system_values={"CPU": 0, "Memory": 0}
 
-
+logger=logging.basicConfig(level=logging.INFO)
 async def update_system_resources_periodically(interval: int):
     """Update system resources (CPU and Memory usage) in the global variable."""
     while True:
@@ -18,12 +19,11 @@ async def update_system_resources_periodically(interval: int):
             memory = psutil.virtual_memory()
             system_values["Memory"] = memory.percent
 
-            logger.info(f"Updated system resources: {system_values}")
         except Exception as e:
-            logger.error(f"Error updating system resources: {e}")
+            print("Error updating system resources: ", e)
 
         # Sleep for a given interval before updating again
-        await asyncio.sleep(10)
+        await asyncio.sleep(interval)
 
 
 def set_rabbitmq_status(status: bool):

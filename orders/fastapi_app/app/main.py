@@ -10,7 +10,8 @@ from fastapi import FastAPI
 from app.routers import main_router, rabbitmq, rabbitmq_publish_logs
 from app.sql import models
 from app.sql import database
-from app.global_variables import update_system_resources_periodically
+import global_variables
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 # Configure logging ################################################################################
 print("Name: ", __name__)
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'logging.ini'))
