@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from app.routers import main_router, rabbitmq, rabbitmq_publish_logs
 from app.sql import models
 from app.sql import database
-from app.global_variables import system_resources
+from app.global_variables import update_system_resources_periodically
 # Configure logging ################################################################################
 print("Name: ", __name__)
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'logging.ini'))
@@ -76,6 +76,10 @@ async def startup_event():
     asyncio.create_task(rabbitmq.subscribe_payment_checked())
     asyncio.create_task(rabbitmq.subscribe_delivery_cancel())
     asyncio.create_task(rabbitmq.subscribe_order_finished())
+    try:
+        task = asyncio.create_task(update_system_resources_periodically(15))
+    except Exception as e:
+        logger.error(f"Error al monitorear recursos del sistema: {e}")
 
     data = {
         "message": "INFO - Servicio Orders inicializado correctamente"

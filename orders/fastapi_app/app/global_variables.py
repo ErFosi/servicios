@@ -6,24 +6,25 @@ rabbitmq_working=False
 fastapi_working=False
 system_values={"CPU": 0, "Memory": 0}
 
-@asynccontextmanager
-async def system_resources(seconds):
-    try:
-        while True:
-            cpu = psutil.cpu_percent(interval=1.0)  # Obtener porcentaje de CPU
-            memory = psutil.virtual_memory().percent  # Obtener porcentaje de memoria
 
-            # Actualizar los valores globales
-            system_resources["CPU"] = cpu
-            system_resources["Memory"] = memory
+async def update_system_resources_periodically(interval: int):
+    """Update system resources (CPU and Memory usage) in the global variable."""
+    while True:
+        try:
+            # Get current CPU usage as percentage
+            system_values["CPU"] = psutil.cpu_percent(interval=1)
 
-            # Mostrar los valores de los recursos
-            logger.info(f"CPU: {cpu}%, Memory: {memory}%")
+            # Get current Memory usage as percentage
+            memory = psutil.virtual_memory()
+            system_values["Memory"] = memory.percent
 
-            # Dormir antes de la siguiente medición
-            await asyncio.sleep(seconds)
-    except asyncio.CancelledError:
-        logger.info("Monitoreo de recursos cancelado")
+            logger.info(f"Updated system resources: {system_values}")
+        except Exception as e:
+            logger.error(f"Error updating system resources: {e}")
+
+        # Sleep for a given interval before updating again
+        await asyncio.sleep(10)
+
 
 def set_rabbitmq_status(status: bool):
     global rabbitmq_working
