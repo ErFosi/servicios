@@ -167,7 +167,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+      - './haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg'
+      - ./haproxy.cfg/503_error.html:/usr/local/etc/haproxy/503_error.html
       - './keys:/keys'
     depends_on:
       - machine
