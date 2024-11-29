@@ -21,6 +21,9 @@ from app.sql import crud, schemas, models
 from app.dependencies import get_db
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+import global_variables
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

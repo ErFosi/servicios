@@ -4,6 +4,7 @@ import json
 from app.sql.database import SessionLocal # pylint: disable=import-outside-toplevel
 from app.sql import crud, models
 import ssl
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,9 @@ async def subscribe_channel():
         logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
 
         exchange_responses = await channel.declare_exchange(name=exchange_responses_name, type='topic', durable=True)
+        rabbitmq_working = True
+        set_rabbitmq_status(True)
+        logger.info("rabbitmq_working : " + str(rabbitmq_working))
 
     except Exception as e:
         logger.error(f"Error durante la suscripción: {e}")

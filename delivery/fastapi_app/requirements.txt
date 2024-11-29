@@ -14,3 +14,4 @@ PyYAML~=6.0
 aio-pika
 pyjwt~=2.6
 python-jose[cryptography]==3.3.0
+git+https://github.com/ErFosi/global_variables.git

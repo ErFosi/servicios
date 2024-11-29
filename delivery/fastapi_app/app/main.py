@@ -12,6 +12,8 @@ from app.sql import models
 from app.sql import database
 
 from app.routers import rabbitmq_publish_logs
+import global_variables
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 
 EXCHANGE_NAME = "exchange"
 
@@ -77,8 +79,13 @@ async def startup_event():
         asyncio.create_task(rabbitmq.subscribe_delivery_check())
         asyncio.create_task(rabbitmq.subscribe_delivery_cancel())
 
+
         message, routing_key = await rabbitmq_publish_logs.formato_log_message("debug", "inicializando Delivery correctamente")
         await rabbitmq_publish_logs.publish_log(message, routing_key)
+        try:
+            task = asyncio.create_task(update_system_resources_periodically(15))
+        except Exception as e:
+            logger.error(f"Error al monitorear recursos del sistema: {e}")
     except:
         message, routing_key = await rabbitmq_publish_logs.formato_log_message("error", "error inicializando Delivery")
         await rabbitmq_publish_logs.publish_log(message, routing_key)

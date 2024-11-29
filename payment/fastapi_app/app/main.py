@@ -11,7 +11,7 @@ from app.routers import main_router
 from app.sql import models
 from app.sql import database
 from app.routers import rabbitmq
-
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 # Configure logging ################################################################################
 print("Name: ", __name__)
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'logging.ini'))
@@ -83,6 +83,14 @@ async def startup_event():
 
     try:
         asyncio.create_task(rabbitmq.subscribe_payment_check())
+        try:
+            task = asyncio.create_task(update_system_resources_periodically(15))
+        except Exception as e:
+            logger.error(f"Error al monitorear recursos del sistema: {e}")
+
+        data = {
+            "message": "INFO - Servicio Orders inicializado correctamente"
+        }
         logger.info("Payment check subscription task created")
     except Exception as e:
         logger.error(f"Error while creating payment check subscription task: {e}")

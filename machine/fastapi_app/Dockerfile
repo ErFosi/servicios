@@ -2,7 +2,8 @@ FROM python:3.12-slim-bookworm
 
 # Configuration will be done as root
 USER root
-
+# Instalar git
+RUN apt-get update && apt-get install -y sqlite3 git
 # Update pip, copy requirements file and install dependencies
 RUN pip install --no-cache-dir --upgrade pip;
 COPY requirements.txt /requirements.txt

@@ -6,6 +6,7 @@ from app.sql import crud
 from app.routers import rabbitmq_publish_logs
 import ssl
 import logging
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,9 @@ async def subscribe_channel():
             type='topic',
             durable=True
         )
+        rabbitmq_working = True
+        set_rabbitmq_status(True)
+        logger.info("rabbitmq_working : " + str(rabbitmq_working))
         logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
 
     except Exception as e:

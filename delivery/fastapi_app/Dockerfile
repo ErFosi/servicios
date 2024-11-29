@@ -4,8 +4,9 @@ FROM python:3.12-slim-bookworm
 USER root
 
 # Update pip, copy requirements file and install dependencies
+RUN apt-get update && apt-get install -y sqlite3 git
 RUN pip install --no-cache-dir --upgrade pip;
-RUN apt-get update && apt-get install -y sqlite3
+
 COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt
 

@@ -10,6 +10,8 @@ from fastapi import FastAPI
 from app.routers import main_router, rabbitmq
 from app.sql import models
 from app.sql import database
+import global_variables
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 
 # Configure logging ################################################################################
 print("Name: ", __name__)
@@ -77,6 +79,10 @@ async def startup_event():
     asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
     asyncio.create_task(rabbitmq.subscribe_commands_logs())
     asyncio.create_task(rabbitmq.subscribe_responses_logs())
+    try:
+        task = asyncio.create_task(update_system_resources_periodically(15))
+    except Exception as e:
+        logger.error(f"Error al monitorear recursos del sistema: {e}")
     logger.info("Despues de create_task")
 
 # Main #############################################################################################

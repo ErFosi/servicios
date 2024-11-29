@@ -15,3 +15,4 @@ pyjwt~=2.6
 pyjwt~=2.6
 python-jose[cryptography]==3.3.0
 aio-pika
+git+https://github.com/ErFosi/global_variables.git

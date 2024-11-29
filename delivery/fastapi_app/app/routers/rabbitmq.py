@@ -6,6 +6,7 @@ from app.sql import crud, models
 from app.routers import rabbitmq_publish_logs
 import ssl
 import logging
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,9 @@ async def subscribe_channel():
 
         exchange_responses = await channel.declare_exchange(name=exchange_responses_name, type='topic', durable=True)
         logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
-
+        rabbitmq_working=True
+        set_rabbitmq_status(True)
+        logger.info("rabbitmq_working : "+str(rabbitmq_working))
     except Exception as e:
         logger.error(f"Error durante la suscripción: {e}")
         raise  # Propaga el error para manejo en niveles superiores
