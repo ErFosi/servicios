@@ -8,7 +8,9 @@ from fastapi import FastAPI
 from app.routers import main_router
 from app.sql import models
 from app.sql import database
-
+import asyncio
+import global_variables
+from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 # Configure logging ################################################################################
 print("Name: ", __name__)
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'logging.ini'))
@@ -56,6 +58,15 @@ app = FastAPI(
 )
 
 app.include_router(main_router.router)
+@app.on_event("startup")
+async def startup_event():
+
+    try:
+        task = asyncio.create_task(update_system_resources_periodically(15))
+    except Exception as e:
+        logger.error(f"Error al monitorear recursos del sistema: {e}")
+
+    logger.info("Se ha enviado")
 
 # Main #############################################################################################
 # If application is run as script, execute uvicorn on port 8000
