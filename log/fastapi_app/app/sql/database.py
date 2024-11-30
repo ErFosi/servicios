@@ -3,24 +3,30 @@
 import os
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+import ssl
+from ssl import CERT_NONE
+from influxdb_client import InfluxDBClient, Point, WritePrecision, WriteOptions
 
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    'SQLALCHEMY_DATABASE_URL',
-    "sqlite+aiosqlite:///./monolithic.db"
+ssl_context = ssl.create_default_context(cafile="/keys/ca_cert.pem")
+ssl_context.check_hostname = False
+ssl_context.verify_mode = CERT_NONE
+
+INFLUXDB_URL = "https://influxdb:8086"
+INFLUXDB_TOKEN = "your-influxdb-token"
+INFLUXDB_ORG = "your-org"
+INFLUXDB_BUCKET = "your-bucket"
+INFLUXDB_USERNAME = "admin"
+INFLUXDB_PASSWORD = "adminpassword"
+CA_CERT_PATH = "/keys/ca_cert.pem"
+
+# Initialize the InfluxDB client
+influxdb_client = InfluxDBClient(
+    url=INFLUXDB_URL,
+    username=INFLUXDB_USERNAME,
+    password=INFLUXDB_PASSWORD,
+    org=INFLUXDB_ORG,
+    verify_ssl=False
 )
 
-engine = create_async_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=False
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-    class_=AsyncSession,
-    future=True
-)
-
-Base = declarative_base()
+# Correctly initialize Write API with batching or default options
+write_api = influxdb_client.write_api(write_options=WriteOptions(batch_size=500, flush_interval=10_000))

@@ -13,6 +13,7 @@ from app.sql import database
 import global_variables
 from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 
+
 # Configure logging ################################################################################
 print("Name: ", __name__)
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'logging.ini'))
@@ -71,19 +72,25 @@ app.include_router(main_router.router)
 @app.on_event("startup")
 async def startup_event():
     """Configuration to be executed when FastAPI server starts."""
-    logger.info("Creating database tables")
-    async with database.engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
-
-    await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
-    asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
-    asyncio.create_task(rabbitmq.subscribe_commands_logs())
-    asyncio.create_task(rabbitmq.subscribe_responses_logs())
     try:
-        task = asyncio.create_task(update_system_resources_periodically(15))
-    except Exception as e:
-        logger.error(f"Error al monitorear recursos del sistema: {e}")
-    logger.info("Despues de create_task")
+        logger.info("Creating database tables")
+
+        # Suscripción a canales y tareas de RabbitMQ
+        await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
+
+        asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
+        asyncio.create_task(rabbitmq.subscribe_commands_logs())
+        asyncio.create_task(rabbitmq.subscribe_responses_logs())
+
+        # Monitorización de recursos del sistema
+        try:
+            task = asyncio.create_task(update_system_resources_periodically(15))
+        except Exception as e:
+            logger.error(f"Error al monitorear recursos del sistema: {e}")
+
+        logger.info("Despues de create_task")
+    except Exception as main_exception:
+        logger.error(f"Error during startup configuration: {main_exception}")
 
 # Main #############################################################################################
 # If application is run as script, execute uvicorn on port 8000
