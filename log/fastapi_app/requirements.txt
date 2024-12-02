@@ -12,4 +12,10 @@ aiosqlite~=0.20
 coloredlogs~=15.0
 PyYAML~=6.0
 pika
+<<<<<<< HEAD
 git+https://github.com/ErFosi/global_variables.git
+=======
+python-jose[cryptography]==3.3.0
+git+https://github.com/ErFosi/global_variables.git
+influxdb-client
+>>>>>>> afc4a3a (sagas)

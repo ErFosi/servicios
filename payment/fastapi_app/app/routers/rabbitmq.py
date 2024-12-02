@@ -57,7 +57,11 @@ async def subscribe_channel():
 
 async def on_message_payment_check(message):
     async with message.process():
+<<<<<<< HEAD
         order = json.loads(message.body)
+=======
+        order = json.loads(message.body.decode())
+>>>>>>> afc4a3a (sagas)
         db = SessionLocal()
         balance, status = await crud.update_balance_by_user_id(db, order['id_client'], order['movement'])
         await db.close()
@@ -66,6 +70,10 @@ async def on_message_payment_check(message):
             "status": status
         }
         message_body = json.dumps(data)
+<<<<<<< HEAD
+=======
+        logger.debug("el mensage que se envia es: "+message_body)
+>>>>>>> afc4a3a (sagas)
         routing_key = "events.order.checked"
         await publish_event(message_body, routing_key)
         routing_key = "payment.checked"

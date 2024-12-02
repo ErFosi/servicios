@@ -69,6 +69,11 @@ async def startup_event():
     try:
 
         logger.info("antes del subscribe")
+<<<<<<< HEAD
+=======
+        async with database.engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.create_all)
+>>>>>>> afc4a3a (sagas)
 
         await rabbitmq.subscribe_channel()
         await rabbitmq_publish_logs.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)

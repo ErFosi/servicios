@@ -6,6 +6,23 @@ from typing import List
 from global_variables.global_variables import rabbitmq_working, system_values
 from global_variables.global_variables import get_rabbitmq_status
 from fastapi.responses import JSONResponse
+<<<<<<< HEAD
+=======
+from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from jose import JWTError, jwt
+from pydantic.json_schema import models_json_schema
+from app.dependencies import get_db, get_machine
+from app.sql import crud
+from ..sql import schemas
+from .router_utils import raise_and_log_error
+from typing import Dict
+from global_variables.global_variables import rabbitmq_working, system_values
+from global_variables.global_variables import get_rabbitmq_status
+from fastapi.responses import JSONResponse
+from influxdb_client import QueryApi
+from app.sql.database import influxdb_client, INFLUXDB_BUCKET, INFLUXDB_ORG
+>>>>>>> afc4a3a (sagas)
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +30,85 @@ router = APIRouter()
 
 logging.basicConfig(filename="logs.log", level=logging.INFO, format="%(asctime)s - %(message)s")
 
+<<<<<<< HEAD
 # Definir una ruta simple usando el APIRouter
 @router.get("/")
 async def root():
     return {"message": "Servicio de Logging escuchando logs"}
+=======
+with open("/keys/priv.pem", "r") as priv_file:
+    PRIVATE_KEY = priv_file.read()
+
+with open("/keys/pub.pem", "r") as pub_file:
+    PUBLIC_KEY = pub_file.read()
+security = HTTPBearer(auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+# Claves de JWT y configuración
+
+
+ALGORITHM = "RS256"
+
+def verify_access_token(token: str):
+    """Verifica la validez del token JWT"""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token no encontrado o inválido."
+        )
+    try:
+        # Decodifica el token usando la clave pública y el algoritmo especificado
+        payload = jwt.decode(token, PUBLIC_KEY, algorithms=[ALGORITHM])
+        logger.debug("Token verificado exitosamente.")
+        return payload  # Devuelve el payload, que contiene la información del usuario
+    except JWTError as e:
+        # Loggear el error específico antes de lanzar la excepción
+        logger.error(f"JWTError en la verificación del token: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token inválido o expirado."
+        )
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        # Verificar si no hay credenciales en la cabecera
+        if credentials is None or not credentials.credentials:
+            logger.warning("No token provided in Authorization header.")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No token provided."
+            )
+
+        # Verificar el token extraído
+        token = credentials.credentials
+        logger.debug("Token extracted, proceeding to verify.")
+        return verify_access_token(token)
+
+    except HTTPException as e:
+        # Manejar específicamente las excepciones HTTP y relanzarlas
+        logger.error(f"HTTPException in get_current_user: {e.detail}")
+        raise e
+
+    except JWTError as e:
+        # Manejar específicamente errores relacionados al token
+        logger.error(f"JWTError in get_current_user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token inválido o expirado."
+        )
+
+    except Exception as e:
+        # Loguear errores inesperados y evitar que escalen a un error 500
+        logger.error(f"Unexpected error in get_current_user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Error in token verification."
+        )
+
+>>>>>>> afc4a3a (sagas)
 
 
 @router.get("/health", tags=["Health check"])
@@ -70,4 +162,53 @@ async def health_check():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error interno en el servidor."
+<<<<<<< HEAD
+=======
+        )
+
+
+@router.get("/logs", tags=["Logs"])
+async def get_logs(current_user: Dict = Depends(get_current_user)):
+    """
+    Retrieve logs from InfluxDB for users with admin privileges.
+    """
+    try:
+        # Access InfluxDB query API
+        query_api: QueryApi = influxdb_client.query_api()
+
+        # Define the query to fetch logs
+        query = f"""
+        from(bucket: "{INFLUXDB_BUCKET}")
+          |> range(start: -1d)
+          |> filter(fn: (r) => r._measurement == "logs")
+          |> sort(columns: ["_time"], desc: true)
+        """
+
+        # Execute the query
+        result = query_api.query(org=INFLUXDB_ORG, query=query)
+
+        # Parse the query results into a list of logs
+        logs = []
+        for table in result:
+            for record in table.records:
+                logs.append({
+                    "time": record.get_time().isoformat(),  # Convert datetime to ISO string
+                    "exchange": record.values.get("exchange"),
+                    "routing_key": record.values.get("routing_key"),
+                    "log_level": record.values.get("log_level"),
+                    "message": record.get_value()
+                })
+
+        # Return the logs
+        return JSONResponse(content={
+            "status": "OK",
+            "logs": logs
+        }, status_code=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error retrieving logs from InfluxDB: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error while retrieving logs."
+>>>>>>> afc4a3a (sagas)
         )

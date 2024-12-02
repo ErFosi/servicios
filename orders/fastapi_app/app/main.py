@@ -73,6 +73,10 @@ async def startup_event():
     await rabbitmq_publish_logs.subscribe_channel()
     logger.info("Se ha suscrito")
     asyncio.create_task(rabbitmq.subscribe_pieces())
+<<<<<<< HEAD
+=======
+    asyncio.create_task(rabbitmq.subscribe_delivery_checked())
+>>>>>>> afc4a3a (sagas)
     asyncio.create_task(rabbitmq.subscribe_command_payment_checked())
     asyncio.create_task(rabbitmq.subscribe_payment_checked())
     asyncio.create_task(rabbitmq.subscribe_delivery_cancel())

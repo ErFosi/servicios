@@ -40,7 +40,16 @@ class BaseModel(Base):
 class Order(BaseModel):
     """order database table representation."""
     STATUS_CREATED = "Created"
+<<<<<<< HEAD
     STATUS_FINISHED = "Finished"
+=======
+    STATUS_CANCELED = "Canceled"
+    STATUS_FINISHED = "Finished"
+    STATUS_DELIVERED = "Delivered"
+    STATUS_PAYMENT_PENDING = "PaymentPending"
+    STATUS_PAYMENT_DONE = "PaymentDone"
+    STATUS_PAYMENT_CANCELED = "PaymentCanceled"
+>>>>>>> afc4a3a (sagas)
 
     __tablename__ = "manufacturing_order"
     id = Column(Integer, primary_key=True)
