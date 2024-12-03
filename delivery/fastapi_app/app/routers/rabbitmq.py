@@ -3,10 +3,7 @@ import aio_pika
 import json
 from app.sql.database import SessionLocal  # pylint: disable=import-outside-toplevel
 from app.sql import crud, models
-<<<<<<< HEAD
-=======
 from app import dependencies
->>>>>>> afc4a3a (sagas)
 from app.routers import rabbitmq_publish_logs
 import ssl
 import logging
@@ -32,11 +29,7 @@ async def subscribe_channel():
     """
     Conéctate a RabbitMQ utilizando SSL, declara los intercambios necesarios y configura el canal.
     """
-<<<<<<< HEAD
-    global channel, exchange_commands, exchange, exchange_commands_name, exchange_name
-=======
     global channel, exchange_commands, exchange, exchange_commands_name, exchange_name, exchange_responses, exchange_responses_name
->>>>>>> afc4a3a (sagas)
 
     try:
         logger.info("Intentando suscribirse...")
@@ -85,19 +78,6 @@ async def subscribe_channel():
 
 async def on_message_delivery_cancel(message):
     async with message.process():
-<<<<<<< HEAD
-        order = json.loads(message.body)
-        db = SessionLocal()
-        delivery = await crud.get_delivery_by_order(db, order['id_order'])
-        delivery = await crud.change_delivery_status(db, delivery.id_delivery, models.Delivery.STATUS_CANCELED)
-        await db.close()
-        data = {
-            "id_order": order['id_order']
-        }
-        message_body = json.dumps(data)
-        routing_key = "delivery.canceled"
-        await publish_response(message_body, routing_key)
-=======
         try:
             # Decodificar el mensaje
             order = json.loads(message.body.decode())
@@ -128,7 +108,6 @@ async def on_message_delivery_cancel(message):
 
         except Exception as e:
             logger.error(f"Error al procesar el mensaje: {e}")
->>>>>>> afc4a3a (sagas)
 
 
 async def subscribe_delivery_cancel():
@@ -153,31 +132,6 @@ async def on_produced_message(message):
         await db.close()
         asyncio.create_task(send_product(db_delivery))
 
-<<<<<<< HEAD
-async def on_create_message(message):
-    async with message.process():
-        order = json.loads(message.body)
-        db = SessionLocal()
-        address_check = await crud.check_address(db, order["user_id"])
-        data = {
-            "id_order": order.order_id,
-            "status": address_check
-        }
-        if address_check:
-            status_delivery_address_check = models.Delivery.STATUS_CREATED
-        else:
-            status_delivery_address_check = models.Delivery.STATUS_CANCELED
-
-        delivery = await crud.create_delivery(db, order["id_order"], order["user_id"],status_delivery_address_check)
-        message = json.dumps(data)
-        routing_key = "events.delivery.checked"
-        await publish_event(message, routing_key)
-        message, routing_key = await rabbitmq_publish_logs.formato_log_message("info", "delivery creado correctamente para el order " + str(delivery.order_id))
-        await rabbitmq_publish_logs.publish_log(message, routing_key)
-        routing_key = "delivery.checked"
-        await publish_response(message_body, routing_key)
-=======
-
 async def on_create_message(message):
     async with message.process():
 
@@ -201,7 +155,6 @@ async def on_create_message(message):
         message = json.dumps(data)
         routing_key = "delivery.checked"
         await publish_response(message, routing_key)
->>>>>>> afc4a3a (sagas)
         await db.close()
 
 async def subscribe_delivery_check():
@@ -222,11 +175,7 @@ async def subscribe_produced():
     queue = await channel.declare_queue(name=queue_name, exclusive=True)
     # Bind the queue to the exchange
     routing_key = "events.order.produced"
-<<<<<<< HEAD
-    await queue.bind(exchange=exchange_events_name, routing_key=routing_key)
-=======
     await queue.bind(exchange=exchange_name, routing_key=routing_key)
->>>>>>> afc4a3a (sagas)
     # Set up a message consumer
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
@@ -238,11 +187,7 @@ async def subscribe_create():
     queue = await channel.declare_queue(name=queue_name, exclusive=True)
     # Bind the queue to the exchange
     routing_key = "events.order.created"
-<<<<<<< HEAD
-    await queue.bind(exchange=exchange_events_name, routing_key=routing_key)
-=======
     await queue.bind(exchange=exchange_name, routing_key=routing_key)
->>>>>>> afc4a3a (sagas)
     # Set up a message consumer
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
@@ -250,10 +195,7 @@ async def subscribe_create():
 
 
 async def send_product(delivery):
-<<<<<<< HEAD
-=======
     logger.debug("HE ENTRADO")
->>>>>>> afc4a3a (sagas)
     data = {
         "id_order": delivery.order_id
     }
@@ -261,41 +203,16 @@ async def send_product(delivery):
 
     # Publica el evento inicial con el estado "in process"
     routing_key = "events.order.inprocess"
-<<<<<<< HEAD
-    await publish_event(message_body, routing_key)
-=======
     try:
         await publish_event(message_body, routing_key)
     except Exception as e:
         logger.error(f"Error al publicar el evento 'in process': {e}")
         return  # O maneja el error según sea necesario
->>>>>>> afc4a3a (sagas)
 
     # Espera de 10 segundos
     await asyncio.sleep(1)
 
     # Actualiza el estado del delivery en la base de datos
-<<<<<<< HEAD
-    db = SessionLocal()
-    db_delivery = await crud.get_delivery(db, delivery.id)
-    db_delivery = await crud.change_delivery_status_done(db, db_delivery.id)
-    await db.close()
-
-    # Cambia el routing_key en función del estado del delivery
-    if db_delivery.status == models.Delivery.STATUS_DELIVERED:
-        routing_key = "events.order.delivered"
-    elif db_delivery.status == models.Delivery.STATUS_COMPLETED:
-        routing_key = "events.order.completed"
-    else:
-        # En caso de otros estados, se puede definir un routing_key predeterminado o manejar el error
-        # logger.warning("Estado inesperado para delivery %s: %s", delivery.id_order, db_delivery.status)
-        return
-
-    # Publica el evento final basado en el estado actualizado
-    await publish_event(message_body, routing_key)
-    message, routing_key = rabbitmq_publish_logs.formato_log_message("info", "delivery actualizado a " + db_delivery.status + "correctamente para el order " + db_delivery.order_id)
-    await rabbitmq_publish_logs.publish_log(message, routing_key)
-=======
     async with dependencies.get_db() as db:
         try:
             db_delivery = await crud.get_delivery(db, delivery.id)
@@ -342,8 +259,6 @@ async def send_product(delivery):
 
     # Cierra la sesión de la base de datos
     await db.close()
->>>>>>> afc4a3a (sagas)
-
 
 async def publish_response(message_body, routing_key):
     # Publish the message to the exchange
@@ -357,11 +272,7 @@ async def publish_response(message_body, routing_key):
 
 async def publish_event(message_body, routing_key):
     # Publish the message to the exchange
-<<<<<<< HEAD
-    await exchange_events.publish(
-=======
     await exchange.publish(
->>>>>>> afc4a3a (sagas)
         aio_pika.Message(
             body=message_body.encode(),
             content_type="text/plain"
