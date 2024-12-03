@@ -5,18 +5,14 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from . import models
-<<<<<<< HEAD
-=======
 from .database import write_api, INFLUXDB_BUCKET, INFLUXDB_ORG
 from influxdb_client import Point
 from influxdb_client import QueryApi
 import influxdb_client
->>>>>>> afc4a3a (sagas)
 
 logger = logging.getLogger(__name__)
 
 
-<<<<<<< HEAD
 # order functions ##################################################################################
 async def create_order_from_schema(db: AsyncSession, order):
     """Persist a new order into the database."""
@@ -190,20 +186,6 @@ async def create_log(db: AsyncSession, log):
         await db.rollback()
         raise
 
-=======
-async def create_log(exchange, routing_key, data, log_level="INFO"):
-    """Write a log to InfluxDB."""
-    try:
-        point = Point("log") \
-            .tag("exchange", exchange) \
-            .tag("routing_key", routing_key) \
-            .tag("log_level", log_level) \
-            .field("message", data) \
-            .time(datetime.utcnow().isoformat())
-        write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=point)
-    except Exception as e:
-        raise Exception(f"Error writing log to InfluxDB: {e}")
-
 async def get_logs(limit=10):
     """Query logs from InfluxDB."""
     query_api = influxdb_client.query_api()
@@ -230,16 +212,3 @@ async def get_logs(limit=10):
     except Exception as e:
         raise Exception(f"Error querying logs from InfluxDB: {e}")
 
-
-async def create_log_with_exception(log, exception=None):
-    """Create a log and include exception details if provided."""
-    try:
-        exception_message = traceback.format_exception(None, exception, exception.__traceback__) if exception else ""
-        log.data["exception"] = exception_message
-
-        # Reutiliza el método create_log
-        return await create_log(log)
-    except Exception as e:
-        logger.error(f"Error creating log with exception: {e}")
-        raise
->>>>>>> afc4a3a (sagas)
