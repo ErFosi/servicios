@@ -14,5 +14,10 @@ passlib
 pyjwt~=2.6
 pyjwt~=2.6
 python-jose[cryptography]==3.3.0
+# Consul library
+python-consul2==0.1.5
+dnspython==2.2.1
+ifaddr
+python-dotenv
 aio-pika
 git+https://github.com/ErFosi/global_variables.git

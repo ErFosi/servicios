@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  # Servicio Consul
+  consul:
+    image: hashicorp/consul:1.16.0
+    container_name: consul
+    ports:
+      - '8300:8300'
+      - '8301:8301'
+      - '8301:8301/udp'
+      - '8500:8500'     # Port For Consul Web UI
+      - '8600:8600'
+      - '8600:8600/udp'
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8500/" ]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+    restart: always
+
   rabbitmq:
     image: rabbitmq:3-management   # Usa la versión con interfaz de administración
     container_name: rabbitmq
@@ -32,9 +50,12 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      consul:
+        condition: service_healthy
     environment:
       PYTHONUNBUFFERED: 1
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
+      CONSUL_HOST: consul
     restart: on-failure
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
 
@@ -49,9 +70,12 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      consul:
+        condition: service_healthy
     environment:
       PYTHONUNBUFFERED: 1
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
+      CONSUL_HOST: consul
     restart: on-failure
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
 
@@ -66,9 +90,12 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      consul:
+        condition: service_healthy
     environment:
       PYTHONUNBUFFERED: 1
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
+      CONSUL_HOST: consul
     restart: on-failure
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
 
@@ -83,9 +110,12 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      consul:
+        condition: service_healthy
     environment:
       PYTHONUNBUFFERED: 1
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
+      CONSUL_HOST: consul
     restart: on-failure
     command: >
       sh -c "sqlite3 /volume/monolithic.db < /volume/init_db.sql &&
@@ -102,9 +132,12 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      consul:
+        condition: service_healthy
     environment:
       PYTHONUNBUFFERED: 1
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
+      CONSUL_HOST: consul
     restart: on-failure
     command: sh -c "sqlite3 /volume/monolithic.db < /volume/init_db.sql &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem"
@@ -120,9 +153,12 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      consul:
+        condition: service_healthy
     environment:
       PYTHONUNBUFFERED: 1
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
+      CONSUL_HOST: consul
     restart: on-failure
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
 

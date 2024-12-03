@@ -6,6 +6,8 @@ import json
 import asyncio
 from contextlib import asynccontextmanager
 
+from .consulService.BLConsul import register_consul_service, unregister_consul_service
+
 from fastapi import FastAPI
 from app.routers import main_router
 from app.sql import models
@@ -72,6 +74,8 @@ async def startup_event():
         logger.error(f"Error while creating database tables: {e}")
         raise  # Rethrow the exception if you want the startup to fail
 
+    register_consul_service()
+
     try:
         logger.info("Subscribing to RabbitMQ channels")
         await rabbitmq.subscribe_channel()
@@ -95,6 +99,11 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Error while creating payment check subscription task: {e}")
         raise  # Rethrow if necessary
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.debug("Dentro del shutdown GGGGGGGGGGGGGGGGGG")
+    unregister_consul_service()
 
 # Main #############################################################################################
 # If application is run as script, execute uvicorn on port 8000

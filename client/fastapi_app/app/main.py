@@ -4,6 +4,9 @@ import logging.config
 import os
 from contextlib import asynccontextmanager
 
+from .consulService.BLConsul import register_consul_service
+from .consulService.BLConsul import unregister_consul_service
+
 from fastapi import FastAPI
 from app.routers import main_router
 from app.sql import models
@@ -61,12 +64,18 @@ app.include_router(main_router.router)
 @app.on_event("startup")
 async def startup_event():
 
+    register_consul_service()
+
     try:
         task = asyncio.create_task(update_system_resources_periodically(15))
     except Exception as e:
         logger.error(f"Error al monitorear recursos del sistema: {e}")
 
     logger.info("Se ha enviado")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    unregister_consul_service()
 
 # Main #############################################################################################
 # If application is run as script, execute uvicorn on port 8000

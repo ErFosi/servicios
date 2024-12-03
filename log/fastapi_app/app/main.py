@@ -6,6 +6,8 @@ import asyncio
 import aio_pika
 from contextlib import asynccontextmanager
 
+from .consulService.BLConsul import register_consul_service, unregister_consul_service
+
 from fastapi import FastAPI
 from app.routers import main_router, rabbitmq
 from app.sql import models
@@ -76,6 +78,9 @@ async def startup_event():
         await conn.run_sync(models.Base.metadata.create_all)
 
     await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
+
+    register_consul_service()
+
     asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
     asyncio.create_task(rabbitmq.subscribe_commands_logs())
     asyncio.create_task(rabbitmq.subscribe_responses_logs())
@@ -84,6 +89,10 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Error al monitorear recursos del sistema: {e}")
     logger.info("Despues de create_task")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    unregister_consul_service()
 
 # Main #############################################################################################
 # If application is run as script, execute uvicorn on port 8000

@@ -6,6 +6,8 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 
+from .consulService.BLConsul import register_consul_service, unregister_consul_service
+
 from fastapi import FastAPI
 from app.routers import main_router, rabbitmq, rabbitmq_publish_logs
 from app.sql import models
@@ -72,6 +74,9 @@ async def startup_event():
     await rabbitmq.subscribe_channel()
     await rabbitmq_publish_logs.subscribe_channel()
     logger.info("Se ha suscrito")
+
+    register_consul_service()
+
     asyncio.create_task(rabbitmq.subscribe_pieces())
     asyncio.create_task(rabbitmq.subscribe_command_payment_checked())
     asyncio.create_task(rabbitmq.subscribe_payment_checked())
@@ -89,6 +94,10 @@ async def startup_event():
     routing_key = "logs.info.orders"
     await rabbitmq_publish_logs.publish_log(message_body, routing_key)
     logger.info("Se ha enviado")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    unregister_consul_service()
 
 if __name__ == "__main__":
     import uvicorn

@@ -5,6 +5,8 @@ import os
 import json
 from contextlib import asynccontextmanager
 
+from .consulService.BLConsul import register_consul_service, unregister_consul_service
+
 from fastapi import FastAPI
 from app.routers import main_router
 from app.routers import rabbitmq
@@ -19,6 +21,7 @@ from global_variables.global_variables import update_system_resources_periodical
 print("Name: ", __name__)
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'logging.ini'))
 logger = logging.getLogger(__name__)
+
 
 
 # OpenAPI Documentation ############################################################################
@@ -69,6 +72,9 @@ async def startup_event():
     """Configuration to be executed when FastAPI server starts."""
     await rabbitmq.subscribe_channel()
     await rabbitmq_publish_logs.subscribe_channel()
+
+    register_consul_service()
+
     asyncio.create_task(rabbitmq.subscribe())
     try:
         task = asyncio.create_task(update_system_resources_periodically(15))
@@ -80,6 +86,10 @@ async def startup_event():
     message_body = json.dumps(data)
     routing_key = "logs.info.machine"
     await rabbitmq_publish_logs.publish_log(message_body, routing_key)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    unregister_consul_service()
 
 # Main #############################################################################################
 # If application is run as script, execute uvicorn on port 8000

@@ -6,6 +6,9 @@ import aio_pika
 import asyncio
 from contextlib import asynccontextmanager
 
+from .consulService.BLConsul import register_consul_service
+from .consulService.BLConsul import unregister_consul_service
+
 from fastapi import FastAPI
 from app.routers import main_router, rabbitmq
 from app.sql import models
@@ -73,6 +76,8 @@ async def startup_event():
         await rabbitmq.subscribe_channel()
         await rabbitmq_publish_logs.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
 
+        register_consul_service()
+
         logger.info("despues del subscribe")
         asyncio.create_task(rabbitmq.subscribe_create())
         asyncio.create_task(rabbitmq.subscribe_produced())
@@ -89,6 +94,10 @@ async def startup_event():
     except:
         message, routing_key = await rabbitmq_publish_logs.formato_log_message("error", "error inicializando Delivery")
         await rabbitmq_publish_logs.publish_log(message, routing_key)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    unregister_consul_service()
 
 if __name__ == "__main__":
     import uvicorn

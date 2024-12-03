@@ -10,5 +10,10 @@ SQLAlchemy~=2.0
 aiosqlite~=0.20
 coloredlogs~=15.0
 PyYAML~=6.0
+# Consul library
+python-consul2==0.1.5
+dnspython==2.2.1
+ifaddr
+python-dotenv
 aio-pika
 git+https://github.com/ErFosi/global_variables.git
