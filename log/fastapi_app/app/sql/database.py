@@ -1,31 +1,4 @@
 # -*- coding: utf-8 -*-
-"""Database session configuration."""
-import os
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-<<<<<<< HEAD
-
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    'SQLALCHEMY_DATABASE_URL',
-    "sqlite+aiosqlite:///./monolithic.db"
-)
-
-engine = create_async_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=False
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-    class_=AsyncSession,
-    future=True
-)
-
-Base = declarative_base()
-=======
 import ssl
 from ssl import CERT_NONE
 from influxdb_client import InfluxDBClient, Point, WritePrecision, WriteOptions
@@ -53,4 +26,3 @@ influxdb_client = InfluxDBClient(
 
 # Correctly initialize Write API with batching or default options
 write_api = influxdb_client.write_api(write_options=WriteOptions(batch_size=500, flush_interval=10_000))
->>>>>>> afc4a3a (sagas)
