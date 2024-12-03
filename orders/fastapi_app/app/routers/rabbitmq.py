@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-=======
 import asyncio
-
->>>>>>> afc4a3a (sagas)
 import aio_pika
 import json
 from app.sql.database import SessionLocal  # pylint: disable=import-outside-toplevel
@@ -10,10 +6,7 @@ from app.sql import crud
 from app.sql import models, schemas
 import logging
 from app.routers import rabbitmq_publish_logs
-<<<<<<< HEAD
-=======
 from app import dependencies
->>>>>>> afc4a3a (sagas)
 import ssl
 from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
 
@@ -36,14 +29,8 @@ exchange_responses_name = 'responses'
 exchange_responses = None
 
 async def subscribe_channel():
-    """
-    Conéctate a RabbitMQ utilizando SSL, declara los intercambios necesarios y configura el canal.
-    """
-<<<<<<< HEAD
-    global channel, exchange_commands, exchange, exchange_commands_name, exchange_name
-=======
+   
     global channel, exchange_commands, exchange, exchange_commands_name, exchange_name, exchange_responses_name, exchange_responses
->>>>>>> afc4a3a (sagas)
 
     try:
         logger.info("Intentando suscribirse...")
@@ -95,14 +82,9 @@ async def on_piece_message(message):
         piece_recieve = json.loads(message.body)
         db = SessionLocal()
         db_order = await crud.get_order(db, piece_recieve['id_order'])
-<<<<<<< HEAD
-        db_piece = await crud.update_piece_status(db, piece_recieve['id_piece'], models.Piece.STATUS_CREATED)
-        db_pieces = await crud.get_piece_list_by_order(db, db_order.id)
-=======
         logger.debug("la order recibida ess: " + db_order)
         db_piece = await crud.update_piece_status(db, piece_recieve['id_piece'], models.Piece.STATUS_MANUFACTURED)
         db_pieces = await crud.get_piece_list_by_order(db, piece_recieve['id_order'])
->>>>>>> afc4a3a (sagas)
         order_finished = True
         logger.info("esta llegando la pieza terminada " + str(piece_recieve['id_piece']) + " a order " + str(db_order.id))
         for piece in db_pieces:
@@ -110,10 +92,7 @@ async def on_piece_message(message):
                 order_finished = False
                 break
         if order_finished:
-<<<<<<< HEAD
-=======
             logger.debug("el estado de la order es finished FINISH")
->>>>>>> afc4a3a (sagas)
             db_order = await crud.update_order_status(db, piece_recieve['id_order'], models.Order.STATUS_FINISHED)
             data = {
                 "id_order": piece_recieve['id_order']
@@ -126,17 +105,10 @@ async def on_piece_message(message):
 
 async def on_order_delivered_message(message):
     async with message.process():
-<<<<<<< HEAD
-        order = json.loads(message.body)
-        db = SessionLocal()
-        db_order = await crud.update_order_status(db, order['id'], models.Order.STATUS_DELIVERED)
-        await rabbitmq_publish_logs.publish_log("order " + order['id'] + "delivered", "logs.info.order")
-=======
         order = json.loads(message.body.decode())
         db = SessionLocal()
         db_order = await crud.update_order_status(db, order['id_order'], models.Order.STATUS_DELIVERED)
         await rabbitmq_publish_logs.publish_log("order " + order['id_order'] + "delivered", "logs.info.order")
->>>>>>> afc4a3a (sagas)
         await db.close()
 
 async def subscribe_pieces():
@@ -167,49 +139,6 @@ async def subscribe_order_finished():
 async def on_payment_checked_message(message):
     async with message.process():
         payment = json.loads(message.body)
-<<<<<<< HEAD
-        db = SessionLocal()
-        db_saga = SessionLocal()
-        if payment['status']:
-            db_order = await crud.update_order_status(db, payment['id_order'], models.Order.STATUS_PAYMENT_DONE)
-            await crud.create_sagas_history(db_saga, payment['id_order'], models.Order.STATUS_PAYMENT_DONE)
-            data = {
-                "id_order": db_order.id,
-                "user_id": db_order.id_client
-            }
-            message_body = json.dumps(data)
-            routing_key = "events.order.created"
-            await publish(message_body, routing_key)
-            await rabbitmq_publish_logs.publish_log("El order ha sido pagado por el cliente " + str(db_order.id_client), "logs.info.order")
-
-            # Crear las piezas de la orden
-            for _ in range(db_order.number_of_pieces):
-                db_piece = await crud.add_piece_to_order(db, db_order)
-                data = {
-                    "piece_id": db_piece.id,
-                    "order_id": db_order.id
-                }
-                logger.info("pieza "+str(db_piece.id)+" creada para order "+str(db_order.id))
-                message_body = json.dumps(data)
-                routing_key = "events.piece.created"
-                await publish(message_body, routing_key)
-                await rabbitmq_publish_logs.publish_log("Petición de hacer pieza enviada", "logs.info.order")
-
-            # pydantic_order = schemas.Order.from_orm(db_order)
-            # order_json = pydantic_order.dict()
-        else:
-            db_order = await crud.update_order_status(db, payment['id_order'], models.Order.STATUS_PAYMENT_DONE)
-            await rabbitmq_publish_logs.publish_log("El balance no es suficiente para el cliente " + str(payment["id_client"]), "logs.error.order")
-            await crud.create_sagas_history(db_saga, payment['id_order'], models.Order.STATUS_PAYMENT_CANCELED)
-            data = {
-                "order_id": db_order.id
-            }
-            message_body = json.dumps(data)
-            routing_key = "delivery.cancel"
-            await publish_command(message_body, routing_key)
-        await db.close()
-        await db_saga.close()
-=======
         try:
             async with SessionLocal() as db, SessionLocal() as db_saga:
                 if payment['status']:
@@ -258,7 +187,6 @@ async def on_payment_checked_message(message):
         except Exception as e:
             logger.error(f"Error al procesar el pago para la orden {payment['id_order']}: {e}")
             raise
->>>>>>> afc4a3a (sagas)
 
 
 async def subscribe_delivery_cancel():
@@ -284,56 +212,19 @@ async def subscribe_command_payment_checked():
     # Set up a message consumer
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
-<<<<<<< HEAD
-            await on_payment_checked_message(message)
-=======
             try:
                 await on_payment_checked_message(message)
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
->>>>>>> afc4a3a (sagas)
 
 
 async def subscribe_payment_checked():
     # Create a queue
-<<<<<<< HEAD
-    queue_name = "order.checked"
-=======
     queue_name = "events.order.checked"
->>>>>>> afc4a3a (sagas)
     queue = await channel.declare_queue(name=queue_name, exclusive=True)
     # Bind the queue to the exchange
     routing_key = "events.order.checked"
     await queue.bind(exchange=exchange_name, routing_key=routing_key)
-<<<<<<< HEAD
-    # Set up a message consumer
-    async with queue.iterator() as queue_iter:
-        async for message in queue_iter:
-            await on_payment_checked_message(message)
-
-
-async def on_delivery_checked_message(message):
-    async with message.process():
-        delivery = json.loads(message.body)
-        db = SessionLocal()
-        db_saga = SessionLocal()
-        if delivery['status'] == True:
-            db_order = await crud.update_order_status(db, delivery['order_id'], models.Order.STATUS_PAYMENT_PENDING)
-            await crud.create_sagas_history(db_saga, delivery['order_id'], models.Order.STATUS_PAYMENT_PENDING)
-            data = {
-                "id_order": db_order.id_order,
-                "id_client": db_order.id_client,
-                "movement": -(db_order.number_of_pieces)
-            }
-            message_body = json.dumps(data)
-            routing_key = "payment.check"
-            await publish_command(message_body, routing_key)
-        elif delivery['status'] == False:
-            db_order = await crud.update_order_status(db, delivery['order_id'], models.Order.STATUS_CANCELED)
-            await crud.create_sagas_history(db_saga, delivery['order_id'], models.Order.STATUS_CANCELED)
-        await db.close()
-        await db_saga.close()
-=======
     asyncio.sleep(1)
     # Set up a message consumer
     async with queue.iterator() as queue_iter:
@@ -398,7 +289,6 @@ async def on_delivery_checked_message(message):
 
         except Exception as e:
             logger.error(f"Error al procesar el mensaje: {e}")
->>>>>>> afc4a3a (sagas)
 
 
 async def subscribe_delivery_checked():
@@ -436,19 +326,11 @@ async def publish_command(message_body, routing_key):
 
 async def on_message_delivery_cancel(message):
     async with message.process():
-<<<<<<< HEAD
-        delivery = json.loads(message.body)
-        db = SessionLocal()
-        db_saga = SessionLocal()
-        db_order = await crud.update_order_status(db, delivery['order_id'], models.Order.STATUS_CANCELED)
-        await crud.create_sagas_history(db_saga, delivery['order_id'], models.Order.STATUS_CANCELED)
-=======
         delivery = json.loads(message.body.decode())
         db = SessionLocal()
         db_saga = SessionLocal()
         db_order = await crud.update_order_status(db, delivery['id_order'], models.Order.STATUS_CANCELED)
         if await crud.check_sagas_payment_status(db, delivery['id_order']) == 1:
             await crud.create_sagas_history(db_saga, delivery['id_order'], models.Order.STATUS_CANCELED)
->>>>>>> afc4a3a (sagas)
         await db.close()
         await db_saga.close()
