@@ -48,15 +48,14 @@ async def create_address(db: AsyncSession, user_id: int, address: str, zip_code:
     logger.debug("Address created for user_id %s with address: %s", user_id, address)
     return new_address
 
-<<<<<<< HEAD
-=======
+
 async def get_list_statement_result(db: AsyncSession, stmt):
     """Execute given statement and return list of items."""
     result = await db.execute(stmt)
     item_list = result.unique().scalars().all()
     return item_list
 
->>>>>>> afc4a3a (sagas)
+
 async def create_delivery(db: AsyncSession, order_id: int, user_id: int, delivery_status: str):
     """Create a new delivery for a user, ensuring there is no existing delivery for the same order_id."""
     try:
@@ -120,11 +119,9 @@ async def update_address(db: AsyncSession, user_id: int, address: Optional[str],
 
 async def check_address(db: AsyncSession, user_id):
     """Persist a new client into the database."""
-<<<<<<< HEAD
-    address = get_address_by_user_id(db, user_id)
-=======
+    
     address = await get_address_by_user_id(db, user_id)
->>>>>>> afc4a3a (sagas)
+    
     provincia = address.zip_code // 1000 # Extraer código de provincia del código postal
     if (provincia == 1 or provincia == 20 or provincia == 48):
         address_check = True
@@ -132,7 +129,7 @@ async def check_address(db: AsyncSession, user_id):
         address_check = False
     return address_check
 
-<<<<<<< HEAD
+
 async def update_delivery(db: AsyncSession, order_id: int, status: Optional[str]):
     """Actualizar el estado de un delivery."""
     async with db.begin():
@@ -146,7 +143,7 @@ async def update_delivery(db: AsyncSession, order_id: int, status: Optional[str]
         )
         result = await db.execute(stmt)
         await db.commit()
-=======
+        
 async def get_delivery_by_order(db: AsyncSession, order_id: int):
     """Fetch a single delivery by order_id."""
     stmt = select(models.Delivery).where(models.Delivery.order_id == order_id)
@@ -171,18 +168,16 @@ async def update_delivery(db: AsyncSession, order_id: int, status: Optional[str]
     # Ejecuta la consulta en el contexto de la transacción
     async with db.begin():
         result = await db.execute(stmt)
->>>>>>> afc4a3a (sagas)
+        
 
     if result.rowcount == 0:
         logger.debug("No delivery found for order_id %s. Update skipped.", order_id)
         return None
 
     logger.debug("Delivery updated for order_id %s", order_id)
-<<<<<<< HEAD
-    return await get_delivery_by_order_id(db, order_id)
-=======
+    
     return await get_delivery_by_order(db, order_id)
->>>>>>> afc4a3a (sagas)
+    
 
 
 async def delete_address(db: AsyncSession, user_id: int):
