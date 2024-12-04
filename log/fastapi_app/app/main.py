@@ -73,13 +73,28 @@ app.include_router(main_router.router)
 @app.on_event("startup")
 async def startup_event():
     """Configuration to be executed when FastAPI server starts."""
-    logger.info("Creating database tables")
-    async with database.engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
+    try:
+        logger.info("Creating database tables")
 
+        # Suscripción a canales y tareas de RabbitMQ
+        await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
+
+        register_consul_service()
+
+        asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
+        asyncio.create_task(rabbitmq.subscribe_commands_logs())
+        asyncio.create_task(rabbitmq.subscribe_responses_logs())
+
+        # Monitorización de recursos del sistema
+        try:
+            task = asyncio.create_task(update_system_resources_periodically(15))
+        except Exception as e:
+            logger.error(f"Error al monitorear recursos del sistema: {e}")
+
+        logger.info("Despues de create_task")
+    except Exception as main_exception:
+        logger.error(f"Error during startup configuration: {main_exception}")
     await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
-
-    register_consul_service()
 
     asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
     asyncio.create_task(rabbitmq.subscribe_commands_logs())
