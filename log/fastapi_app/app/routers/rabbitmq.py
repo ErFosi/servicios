@@ -1,12 +1,6 @@
 import aio_pika
 import logging
 import json
-<<<<<<< HEAD
-from app.sql.database import SessionLocal # pylint: disable=import-outside-toplevel
-from app.sql import crud, models
-import ssl
-from global_variables.global_variables import update_system_resources_periodically, set_rabbitmq_status, get_rabbitmq_status
-=======
 
 from app.sql import crud, models
 import ssl
@@ -15,7 +9,6 @@ from datetime import datetime
 from app.sql.database import write_api, INFLUXDB_BUCKET, INFLUXDB_ORG
 from influxdb_client import Point
 import traceback
->>>>>>> afc4a3a (sagas)
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +18,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-<<<<<<< HEAD
-# Configuración SSL
-=======
->>>>>>> afc4a3a (sagas)
 ssl_context = ssl.create_default_context(cafile="/keys/ca_cert.pem")
 ssl_context.check_hostname = False  # Deshabilita la verificación del hostname
 ssl_context.verify_mode = ssl.CERT_NONE  # No verifica el certificado del servidor
@@ -42,21 +31,6 @@ exchange_name = 'exchange'
 exchange_responses_name = 'responses'
 exchange_responses = None
 
-<<<<<<< HEAD
-async def subscribe_channel():
-    """
-    Conéctate a RabbitMQ utilizando SSL, declara los intercambios necesarios y configura el canal.
-    """
-    global channel, exchange_commands, exchange, exchange_commands_name, exchange_name
-
-    try:
-        logger.info("Intentando suscribirse...")
-
-        # Establece la conexión robusta con RabbitMQ
-        connection = await aio_pika.connect_robust(
-            host='rabbitmq',
-            port=5671,  # Puerto seguro SSL
-=======
 async def subscribe_channel(type: aio_pika.ExchangeType, ex_name: str):
 
     global channel, exchange, exchange_name, exchange_commands, exchange_responses_name, exchange_responses, exchange_commands_name
@@ -68,7 +42,6 @@ async def subscribe_channel(type: aio_pika.ExchangeType, ex_name: str):
         connection = await aio_pika.connect_robust(
             host='rabbitmq',
             port=5671,  # Puerto seguro TLS
->>>>>>> afc4a3a (sagas)
             virtualhost='/',
             login='guest',
             password='guest',
@@ -81,58 +54,17 @@ async def subscribe_channel(type: aio_pika.ExchangeType, ex_name: str):
         channel = await connection.channel()
         logger.debug("Canal creado con éxito")
 
-<<<<<<< HEAD
-        # Declarar el intercambio para "commands"
-        exchange_commands = await channel.declare_exchange(
-            name=exchange_commands_name,
-            type='topic',
-            durable=True
-        )
-        logger.info(f"Intercambio '{exchange_commands_name}' declarado con éxito")
-
-        # Declarar el intercambio específico
-        exchange = await channel.declare_exchange(
-            name=exchange_name,
-            type='topic',
-            durable=True
-        )
-        logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
-
-        exchange_responses = await channel.declare_exchange(name=exchange_responses_name, type='topic', durable=True)
-        rabbitmq_working = True
-        set_rabbitmq_status(True)
-        logger.info("rabbitmq_working : " + str(rabbitmq_working))
-
-    except Exception as e:
-        logger.error(f"Error durante la suscripción: {e}")
-=======
         # Declarar el intercambio
         exchange = await channel.declare_exchange(name=exchange_name, type=type, durable=True)
         logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
 
     except Exception as e:
         logger.error(f"Error durante la suscripción al intercambio '{ex_name}': {e}")
->>>>>>> afc4a3a (sagas)
         raise  # Propaga el error para manejo en niveles superiores
 
 
 async def on_log_message(message):
     async with message.process():
-<<<<<<< HEAD
-        logger.info(f" [x] Received message from {exchange_name}: {message.body.decode()}")
-        print(f" [x] Received message from {exchange_name}: {message.body.decode()}")
-        routing_key = message.routing_key
-        data = message.body
-        log = models.Log(
-            exchange=exchange_name,
-            routing_key=routing_key,
-            data=data
-        )
-        db = SessionLocal()
-        log = await crud.create_log(db, log)
-        print(log)
-        await db.close()
-=======
         try:
             # Log básico al recibir un mensaje
             logger.info(f" [x] Received message from {exchange_name}: {message.body.decode()}")
@@ -176,8 +108,6 @@ async def on_log_message(message):
 
             print("Error log saved to InfluxDB")
 
->>>>>>> afc4a3a (sagas)
-
 async def subscribe_logs(queue_name: str):
     queue = await channel.declare_queue(name=queue_name, exclusive=True)
     # Bind the queue to the exchange
@@ -191,17 +121,6 @@ async def subscribe_logs(queue_name: str):
 
 async def on_command_log_message(message):
     async with message.process():
-<<<<<<< HEAD
-        log = models.Log(
-            #exchange=message.exchange,
-            exchange=exchange_commands_name,
-            routing_key=message.routing_key,
-            data=message.body
-        )
-        db = SessionLocal()
-        await crud.create_log(db, log)
-        await db.close()
-=======
         try:
             # Extraer datos del mensaje
             routing_key = message.routing_key
@@ -240,7 +159,6 @@ async def on_command_log_message(message):
             write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=point)
 
             print("Error log saved to InfluxDB")
->>>>>>> afc4a3a (sagas)
 
 
 async def subscribe_commands_logs():
@@ -257,17 +175,6 @@ async def subscribe_commands_logs():
 
 async def on_response_log_message(message):
     async with message.process():
-<<<<<<< HEAD
-        log = models.Log(
-            #exchange=message.exchange,
-            exchange=exchange_responses_name,
-            routing_key=message.routing_key,
-            data=message.body
-        )
-        db = SessionLocal()
-        await crud.create_log(db, log)
-        await db.close()
-=======
         try:
 
             # Extraer información del mensaje
@@ -307,7 +214,6 @@ async def on_response_log_message(message):
             write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=point)
 
             print("Error log saved to InfluxDB")
->>>>>>> afc4a3a (sagas)
 
 
 async def subscribe_responses_logs():
