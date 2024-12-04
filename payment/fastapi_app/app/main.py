@@ -102,7 +102,7 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.debug("Dentro del shutdown GGGGGGGGGGGGGGGGGG")
+    logger.debug("Dentro del shutdown")
     unregister_consul_service()
 
 # Main #############################################################################################

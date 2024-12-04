@@ -57,7 +57,7 @@ services:
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
       CONSUL_HOST: consul
     restart: on-failure
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
+    #command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
 
   orders:
     build: ./orders/fastapi_app/.
@@ -77,7 +77,7 @@ services:
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
       CONSUL_HOST: consul
     restart: on-failure
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
+    #command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
 
   delivery:
     build: ./delivery/fastapi_app/.
@@ -97,7 +97,7 @@ services:
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
       CONSUL_HOST: consul
     restart: on-failure
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
+    #command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem
 
   client:
     build: ./client/fastapi_app/.
@@ -117,9 +117,9 @@ services:
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
       CONSUL_HOST: consul
     restart: on-failure
-    command: >
-      sh -c "sqlite3 /volume/monolithic.db < /volume/init_db.sql &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem"
+    #command: >
+      #sh -c "sqlite3 /volume/monolithic.db < /volume/init_db.sql &&
+             #uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem"
 
   payment:
     build: ./payment/fastapi_app/.
@@ -139,8 +139,8 @@ services:
       SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_SQLITE_DATABASE_URI}
       CONSUL_HOST: consul
     restart: on-failure
-    command: sh -c "sqlite3 /volume/monolithic.db < /volume/init_db.sql &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem"
+    #command: sh -c "sqlite3 /volume/monolithic.db < /volume/init_db.sql &&
+             #uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /keys/priv.pem --ssl-certfile /keys/cert.pem"
 
   logging:
     build: ./log/fastapi_app/.

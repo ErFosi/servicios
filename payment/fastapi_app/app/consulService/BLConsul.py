@@ -48,8 +48,8 @@ def register_consul_service(cons=consul_instance, conf=config):
         check={
             "http": health_check_url,
             "tls_skip_verify": True,  # Opcional: Evita errores de certificados no válidos en Consul
-            "interval": '10s'
-            #"deregister_critical_service_after": "40s"
+            "interval": '10s',
+            "deregister_critical_service_after": "40s"
         }
     )
     logger.info(f"Registered {conf.SERVICE_NAME} service ({conf.SERVICE_ID})")
