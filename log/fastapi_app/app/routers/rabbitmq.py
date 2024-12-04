@@ -10,6 +10,7 @@ from app.sql.database import write_api, INFLUXDB_BUCKET, INFLUXDB_ORG
 from influxdb_client import Point
 import traceback
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,14 +33,8 @@ exchange_responses_name = 'responses'
 exchange_responses = None
 
 async def subscribe_channel(type: aio_pika.ExchangeType, ex_name: str):
-    """
-    Conéctate a RabbitMQ utilizando TLS, declara los intercambios necesarios y configura el canal.
 
-    Args:
-        type (aio_pika.ExchangeType): Tipo de intercambio (e.g., 'topic').
-        ex_name (str): Nombre del intercambio.
-    """
-    global channel, exchange, exchange_name
+    global channel, exchange, exchange_name, exchange_commands, exchange_responses_name, exchange_responses, exchange_commands_name
 
     try:
         logger.info(f"Intentando suscribirse al intercambio '{ex_name}' de tipo '{type}'...")
@@ -60,10 +55,27 @@ async def subscribe_channel(type: aio_pika.ExchangeType, ex_name: str):
         channel = await connection.channel()
         logger.debug("Canal creado con éxito")
 
-        # Declarar el intercambio
-        exchange_name = ex_name
-        exchange = await channel.declare_exchange(name=exchange_name, type=type, durable=True)
+
+        # Declarar el intercambio para "commands"
+        exchange_commands = await channel.declare_exchange(
+            name=exchange_commands_name,
+            type='topic',
+            durable=True
+        )
+        logger.info(f"Intercambio '{exchange_commands_name}' declarado con éxito")
+
+        # Declarar el intercambio específico
+        exchange = await channel.declare_exchange(
+            name=exchange_name,
+            type='topic',
+            durable=True
+        )
         logger.info(f"Intercambio '{exchange_name}' declarado con éxito")
+
+        exchange_responses = await channel.declare_exchange(name=exchange_responses_name, type='topic', durable=True)
+        rabbitmq_working = True
+        set_rabbitmq_status(True)
+        logger.info("rabbitmq_working : " + str(rabbitmq_working))
 
     except Exception as e:
         logger.error(f"Error durante la suscripción al intercambio '{ex_name}': {e}")

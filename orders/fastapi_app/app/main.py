@@ -78,6 +78,7 @@ async def startup_event():
     register_consul_service()
 
     asyncio.create_task(rabbitmq.subscribe_pieces())
+    asyncio.create_task(rabbitmq.subscribe_delivery_checked())
     asyncio.create_task(rabbitmq.subscribe_command_payment_checked())
     asyncio.create_task(rabbitmq.subscribe_payment_checked())
     asyncio.create_task(rabbitmq.subscribe_delivery_cancel())

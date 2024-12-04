@@ -57,7 +57,7 @@ async def subscribe_channel():
 
 async def on_message_payment_check(message):
     async with message.process():
-        order = json.loads(message.body)
+        order = json.loads(message.body.decode())
         db = SessionLocal()
         balance, status = await crud.update_balance_by_user_id(db, order['id_client'], order['movement'])
         await db.close()
@@ -66,11 +66,11 @@ async def on_message_payment_check(message):
             "status": status
         }
         message_body = json.dumps(data)
+        logger.debug("el mensage que se envia es: " + message_body)
         routing_key = "events.order.checked"
         await publish_event(message_body, routing_key)
         routing_key = "payment.checked"
         await publish_response(message_body, routing_key)
-
 
 async def subscribe_payment_check():
     # Create queue

@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import ssl
 from ssl import CERT_NONE
 from influxdb_client import InfluxDBClient, Point, WritePrecision, WriteOptions
+import ssl
+from ssl import CERT_NONE
+from influxdb_client import InfluxDBClient, Point, WritePrecision, WriteOptions
 
 ssl_context = ssl.create_default_context(cafile="/keys/ca_cert.pem")
 ssl_context.check_hostname = False

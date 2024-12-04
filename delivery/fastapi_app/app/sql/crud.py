@@ -23,6 +23,7 @@ from fastapi import HTTPException, status
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 async def create_address(db: AsyncSession, user_id: int, address: str, zip_code: int):
     """Create a new address for a user, ensuring there is no existing address."""
     # Check if an address already exists for the user
@@ -48,6 +49,14 @@ async def create_address(db: AsyncSession, user_id: int, address: str, zip_code:
     logger.debug("Address created for user_id %s with address: %s", user_id, address)
     return new_address
 
+
+async def get_list_statement_result(db: AsyncSession, stmt):
+    """Execute given statement and return list of items."""
+    result = await db.execute(stmt)
+    item_list = result.unique().scalars().all()
+    return item_list
+
+
 async def create_delivery(db: AsyncSession, order_id: int, user_id: int, delivery_status: str):
     """Create a new delivery for a user, ensuring there is no existing delivery for the same order_id."""
     try:
@@ -71,7 +80,8 @@ async def create_delivery(db: AsyncSession, order_id: int, user_id: int, deliver
         db.add(new_delivery)
         await db.commit()
         await db.refresh(new_delivery)
-        logger.debug("Delivery created with order_id %s, user_id: %s, and status: %s", order_id, user_id, delivery_status)
+        logger.debug("Delivery created with order_id %s, user_id: %s, and status: %s", order_id, user_id,
+                     delivery_status)
         return new_delivery
 
     except SQLAlchemyError as e:
@@ -109,15 +119,19 @@ async def update_address(db: AsyncSession, user_id: int, address: Optional[str],
     logger.debug("Address updated for user_id %s", user_id)
     return await get_address_by_user_id(db, user_id)
 
+
 async def check_address(db: AsyncSession, user_id):
     """Persist a new client into the database."""
-    address = get_address_by_user_id(db, user_id)
-    provincia = address.zip_code // 1000 # Extraer código de provincia del código postal
+
+    address = await get_address_by_user_id(db, user_id)
+
+    provincia = address.zip_code // 1000  # Extraer código de provincia del código postal
     if (provincia == 1 or provincia == 20 or provincia == 48):
         address_check = True
     else:
         address_check = False
     return address_check
+
 
 async def update_delivery(db: AsyncSession, order_id: int, status: Optional[str]):
     """Actualizar el estado de un delivery."""
@@ -133,12 +147,39 @@ async def update_delivery(db: AsyncSession, order_id: int, status: Optional[str]
         result = await db.execute(stmt)
         await db.commit()
 
+
+async def get_delivery_by_order(db: AsyncSession, order_id: int):
+    """Fetch a single delivery by order_id."""
+    stmt = select(models.Delivery).where(models.Delivery.order_id == order_id)
+    result = await db.execute(stmt)
+    delivery = result.scalars().first()
+    if not delivery:
+        logger.debug("No delivery found for order_id %s", order_id)
+    return delivery
+
+
+async def update_delivery(db: AsyncSession, order_id: int, status: Optional[str]):
+    """Update the delivery status."""
+    stmt = (
+        update(models.Delivery)
+        .where(models.Delivery.order_id == order_id)
+        .values(
+            status=status if status else models.Delivery.status
+        )
+        .execution_options(synchronize_session="fetch")
+    )
+
+    # Ejecuta la consulta en el contexto de la transacción
+    async with db.begin():
+        result = await db.execute(stmt)
+
     if result.rowcount == 0:
         logger.debug("No delivery found for order_id %s. Update skipped.", order_id)
         return None
 
     logger.debug("Delivery updated for order_id %s", order_id)
-    return await get_delivery_by_order_id(db, order_id)
+
+    return await get_delivery_by_order(db, order_id)
 
 
 async def delete_address(db: AsyncSession, user_id: int):
@@ -155,6 +196,7 @@ async def delete_address(db: AsyncSession, user_id: int):
     logger.debug("Address for user_id %s deleted successfully", user_id)
     return True
 
+
 async def delete_delivery(db: AsyncSession, order_id: int):
     """Eliminar un delivery por order_id."""
     async with db.begin():
@@ -169,10 +211,12 @@ async def delete_delivery(db: AsyncSession, order_id: int):
     logger.debug("Delivery with order_id %s deleted successfully", order_id)
     return True
 
+
 async def get_address_by_user_id(db: AsyncSession, user_id: int):
     """Obtener una dirección por user_id."""
     result = await db.execute(select(models.UserAddress).where(models.UserAddress.user_id == user_id))
     return result.scalars().first()
+
 
 async def get_delivery_by_order_id(db: AsyncSession, order_id: int):
     """Obtener un delivery por order_id."""

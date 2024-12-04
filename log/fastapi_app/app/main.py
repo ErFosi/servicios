@@ -79,8 +79,6 @@ async def startup_event():
         # Suscripción a canales y tareas de RabbitMQ
         await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
 
-        register_consul_service()
-
         asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
         asyncio.create_task(rabbitmq.subscribe_commands_logs())
         asyncio.create_task(rabbitmq.subscribe_responses_logs())
@@ -94,16 +92,6 @@ async def startup_event():
         logger.info("Despues de create_task")
     except Exception as main_exception:
         logger.error(f"Error during startup configuration: {main_exception}")
-    await rabbitmq.subscribe_channel(aio_pika.ExchangeType.TOPIC, EXCHANGE_NAME)
-
-    asyncio.create_task(rabbitmq.subscribe_logs(QUEUE_NAME))
-    asyncio.create_task(rabbitmq.subscribe_commands_logs())
-    asyncio.create_task(rabbitmq.subscribe_responses_logs())
-    try:
-        task = asyncio.create_task(update_system_resources_periodically(15))
-    except Exception as e:
-        logger.error(f"Error al monitorear recursos del sistema: {e}")
-    logger.info("Despues de create_task")
 
 @app.on_event("shutdown")
 async def shutdown_event():

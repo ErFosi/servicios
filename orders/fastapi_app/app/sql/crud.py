@@ -3,6 +3,7 @@
 import logging
 import json
 from datetime import datetime
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from .database import SessionLocal
@@ -31,7 +32,7 @@ async def create_order_from_schema(db: AsyncSession, order):
     await db_saga.close()
     data = {
         "id_order": db_order.id,
-        "id_client": db_order.id_client
+        "user_id": db_order.id_client
     }
     message_body = json.dumps(data)
     routing_key = "delivery.check"
@@ -42,6 +43,7 @@ async def create_order_from_schema(db: AsyncSession, order):
 async def add_piece_to_order(db: AsyncSession, order):
     """Creates piece and adds it to order."""
     piece = models.Piece()
+    piece.status = "Queued"
     piece.order = order
     db.add(piece)
     await db.commit()
@@ -188,6 +190,24 @@ async def update_order(db: AsyncSession, order_id: int, update_data: dict):
     return await get_order(db, order_id)  # Retornar la orden actualizada si se realizó el update
 
 # Sagas
+
+async def check_sagas_payment_status(db: AsyncSession, id_order: int):
+    """Check if a specific payment status is present in the sagas history for a given order."""
+    stmt = (
+        select(models.SagasHistory)
+        .where(
+            models.SagasHistory.id_order == id_order,
+            or_(
+                models.SagasHistory.status == "PaymentDone",
+                models.SagasHistory.status == "PaymentPending",
+                models.SagasHistory.status == "PaymentCanceled"
+            )
+        )
+    )
+    result = await db.execute(stmt)
+    sagas = result.scalars().all()  # Obtén todas las filas coincidentes
+
+    return len(sagas)  # Devuelve True si hay coincidencias
 
 async def get_sagas_history_by_order_id(db: AsyncSession, id_order):
     """Load all the sagas history of certain order from the database."""
